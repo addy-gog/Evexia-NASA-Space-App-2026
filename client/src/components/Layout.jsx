@@ -121,6 +121,7 @@ function ProfileMenu() {
           </div>
           <nav aria-label="Account" className="flex flex-col pt-1">
             <Link className={item} to="/settings" onClick={() => setOpen(false)}>Mission &amp; Settings</Link>
+            <Link className={item} to="/comms" onClick={() => setOpen(false)}>Earth link</Link>
             <Link className={item} to="/data" onClick={() => setOpen(false)}>NASA Data</Link>
             <Link className={item} to="/telemetry" onClick={() => setOpen(false)}>Live Telemetry</Link>
             <Link className={item} to="/guide" onClick={() => setOpen(false)}>Measurement guide</Link>
@@ -148,6 +149,10 @@ function Header() {
   const delay = useHealthStore((s) => s.delaySeconds);
   const apiOnline = useHealthStore((s) => s.apiOnline);
   const alerts = useHealthStore((s) => s.status.alerts.length);
+  const link = useHealthStore((s) => s.earthLink);
+  const blackout = link?.mode === 'blackout';
+  const waiting = link?.waiting ?? 0;
+  const earthText = `${delay > 0 ? `about ${formatDelay(delay)} one-way` : 'real-time'}${blackout ? ', link down' : ''}${waiting ? `, ${waiting} report${waiting === 1 ? '' : 's'} waiting` : ''}`;
   return (
     <header className="z-30 border-b border-ink/[0.06] bg-[rgb(var(--chrome)/0.90)] lg:sticky lg:top-0">
       <div className="mx-auto flex max-w-page flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 sm:px-6">
@@ -176,15 +181,21 @@ function Header() {
           ))}
         </nav>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <span className="pill" data-testid="earth-link">
+          {/* Two different links: this screen to the onboard server, and the spacecraft to Earth. */}
+          <span className={`pill ${apiOnline === false ? 'flex' : 'hidden 2xl:flex'}`} data-testid="onboard-status">
+            <span className={`block h-2 w-2 rounded-full ${apiOnline === false ? 'bg-warn-dot' : 'bg-ok-dot'}`} aria-hidden="true" />
+            {apiOnline === false ? <span className="text-warn-fg">Onboard server unreachable</span> : 'Onboard OK'}
+          </span>
+          <Link to="/comms" className="pill hover:bg-ink/[0.06]" data-testid="earth-link" data-mode={link?.mode ?? 'unknown'} aria-label={`Earth link: ${earthText}. Open Earth link.`}>
             <span className="font-mono text-ink-3" data-testid="header-day">Day {day ?? '—'}</span>
             <span className="h-3.5 w-px bg-ink/15" aria-hidden="true" />
-            <span className={`block h-2 w-2 rounded-full ${apiOnline === false ? 'bg-warn-dot' : 'blink bg-ok-dot'}`} aria-hidden="true" />
-            Earth {delay > 0 ? `≈${formatDelay(delay)} one-way` : "real-time"}
-            {apiOnline === false && <span className="text-warn-fg"> · offline</span>}
-          </span>
+            <span className={`block h-2 w-2 rounded-full ${blackout ? 'bg-warn-dot' : 'blink bg-ok-dot'}`} aria-hidden="true" />
+            Earth {delay > 0 ? `≈${formatDelay(delay)} one-way` : 'real-time'}
+            {blackout && <span className="text-warn-fg"> · link down</span>}
+            {waiting > 0 && <span className="font-semibold text-warn-fg" data-testid="earth-waiting"> · {waiting} waiting</span>}
+          </Link>
           <span className="sr-only" role="status" data-testid="connection-status" data-online={apiOnline !== false}>
-            {apiOnline === false ? 'Ground link offline: local mode' : 'Ground link online'}
+            {apiOnline === false ? 'Onboard server unreachable: working from this device' : 'Onboard server reachable'}
           </span>
           <NavLink to="/emergency" className="btn-danger min-h-touch rounded-full px-4 text-sm" data-testid="emergency-button">
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 7v6M12 17h.01M8 2h8l6 6v8l-6 6H8l-6-6V8z" /></svg>
@@ -232,6 +243,7 @@ const TITLES = {
   '/alerts': 'Guidance',
   '/guide': 'Measurement Guide',
   '/emergency': 'Emergency',
+  '/comms': 'Earth link',
   '/data': 'NASA Data',
   '/settings': 'Mission and Settings',
   '/credits': 'Credits',

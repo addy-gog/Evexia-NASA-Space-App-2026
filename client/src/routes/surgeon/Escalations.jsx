@@ -35,6 +35,21 @@ export default function SurgeonEscalations() {
       showToast('Could not save: ground link unavailable.', 'warn');
     }
   };
+  const reply = async (id, text) => {
+    try {
+      await api.replyEscalation(id, text);
+      showToast(`Reply to #${id} queued for the crew.`, 'ok');
+      load();
+      return true;
+    } catch {
+      showToast('Reply not sent: the ground server is unreachable.', 'warn');
+      return false;
+    }
+  };
+  useEffect(() => {
+    const id = setInterval(load, 4000); // reports arrive over time on a delayed link
+    return () => clearInterval(id);
+  }, [load]);
   const shown = (esc ?? []).filter((e) => (filter === 'open' ? e.status !== 'reviewed' : true));
 
   return (
@@ -60,7 +75,7 @@ export default function SurgeonEscalations() {
       ) : (
         <ul className="flex flex-col gap-3" data-testid="escalation-list">
           {shown.map((e) => (
-            <EscalationItem key={`${e.id}-${e.status}-${e.note}`} e={e} avatar={avatars[e.crewId]} onSave={save} />
+            <EscalationItem key={`${e.id}-${e.status}-${e.note}`} e={e} avatar={avatars[e.crewId]} onSave={save} onReply={reply} />
           ))}
         </ul>
       )}

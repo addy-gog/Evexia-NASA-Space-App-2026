@@ -78,8 +78,16 @@ export default function EscalationDialog({ focusId, onClose, onSent, priority = 
     try {
       const saved = await api.postEscalation(report);
       onSent?.(saved);
-      setStatus({ tone: 'ok', msg: `Report #${saved.id} queued for the flight surgeon. ${report.delay.arrival}` });
+      // Honest about the Earth link: never imply Earth has it before the receipt comes back.
+      const waiting = saved.link?.step === 'waiting';
+      setStatus({
+        tone: waiting ? 'warn' : 'ok',
+        msg: waiting
+          ? `Report #${saved.id} queued for the flight surgeon. The Earth link is down, so it waits on board and leaves when the link is back.`
+          : `Report #${saved.id} queued for the flight surgeon and leaving now. ${report.delay.arrival} Track it on the Earth link page.`,
+      });
       s.setApiOnline(true);
+      s.loadEarthLink();
     } catch {
       setStatus({ tone: 'warn', msg: 'Ground link unavailable: report saved for download. Copy or download it and send when the link returns.' });
       s.setApiOnline(false);

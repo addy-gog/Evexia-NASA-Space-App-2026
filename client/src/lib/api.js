@@ -47,6 +47,10 @@ export const api = {
   postEscalation: (p) => request('/escalations', { method: 'POST', body: p }),
   escalations: () => request('/escalations'),
   patchEscalation: (id, body) => request(`/escalations/${id}`, { method: 'PATCH', body }),
+  replyEscalation: (id, text) => request(`/escalations/${id}/reply`, { method: 'POST', body: { text } }),
+  // Earth link simulator (store and forward)
+  link: () => request('/link', { timeout: 5000 }),
+  setLink: (body) => request('/link', { method: 'PUT', body }),
   // Telemetry
   postTelemetry: (payload, key) => request('/telemetry', { method: 'POST', body: payload, headers: key ? { 'x-telemetry-key': key } : {} }),
   telemetry: (crewId, since) => request(`/telemetry?${qs({ crewId, since })}`, { timeout: 15000 }),

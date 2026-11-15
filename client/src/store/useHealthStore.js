@@ -75,6 +75,8 @@ const initial = {
   syncWindowMinutes: 15,
   telemetryKey: '',
   apiOnline: null,
+  // Earth link simulator state from the server: { mode: 'up'|'blackout', timeScale, waiting, unconfirmed } or null.
+  earthLink: null,
   loading: false,
   telemetry: { samples: [], devices: [], stream: 'disconnected', lastSyncAt: null },
   // Symptom notes saved from the assistant (with a recheck time). Server is the source of truth.
@@ -157,6 +159,19 @@ export const useHealthStore = create(
         setSyncWindow: (syncWindowMinutes) => set({ syncWindowMinutes }),
         setTelemetryKey: (telemetryKey) => set({ telemetryKey }),
         setApiOnline: (apiOnline) => set({ apiOnline }),
+        loadEarthLink: async () => {
+          try {
+            set({ earthLink: await api.link() });
+          } catch {
+            /* the onboard server is unreachable: the header shows that separately */
+          }
+        },
+        setEarthLink: async (body) => {
+          const link = await api.setLink(body);
+          set({ earthLink: { ...get().earthLink, ...link } });
+          get().loadEarthLink();
+          return link;
+        },
         showToast: (message, tone = 'info') => set({ toast: { message, tone, id: Date.now() } }),
         clearToast: () => set({ toast: null }),
 

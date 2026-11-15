@@ -21,6 +21,7 @@ import { api } from './lib/api.js';
 const History = lazy(() => import('./routes/History.jsx'));
 const NasaData = lazy(() => import('./routes/NasaData.jsx'));
 const BodyPage = lazy(() => import('./routes/BodyPage.jsx'));
+const Comms = lazy(() => import('./routes/Comms.jsx'));
 const SurgeonOverview = lazy(() => import('./routes/surgeon/Overview.jsx'));
 const CrewDetail = lazy(() => import('./routes/surgeon/CrewDetail.jsx'));
 const SurgeonEscalations = lazy(() => import('./routes/surgeon/Escalations.jsx'));
@@ -39,6 +40,18 @@ function useDocumentSettings() {
     if (reducedMotion === null) delete el.dataset.reducedMotion;
     else el.dataset.reducedMotion = String(reducedMotion);
   }, [textSize, highContrast, reducedMotion, theme]);
+}
+
+/** Keep the Earth link state (up or blackout, reports waiting) fresh for signed-in crew. */
+function useEarthLinkMonitor() {
+  const role = useHealthStore((s) => s.user?.role);
+  useEffect(() => {
+    if (role !== 'astronaut') return undefined;
+    const load = () => useHealthStore.getState().loadEarthLink();
+    load();
+    const id = setInterval(load, 5000);
+    return () => clearInterval(id);
+  }, [role]);
 }
 
 function useConnectionMonitor() {
@@ -116,6 +129,7 @@ const lazyEl = (C) => (
 export default function App() {
   useDocumentSettings();
   useConnectionMonitor();
+  useEarthLinkMonitor();
   useSessionAndClock();
   useTelemetryStream();
   useAutoSync();
@@ -155,6 +169,7 @@ export default function App() {
         <Route path="alerts" element={<Alerts />} />
         <Route path="guide" element={<Guide />} />
         <Route path="emergency" element={<Emergency />} />
+        <Route path="comms" element={lazyEl(Comms)} />
         <Route path="data" element={lazyEl(NasaData)} />
         <Route path="settings" element={<Settings />} />
         <Route path="credits" element={<Credits />} />
