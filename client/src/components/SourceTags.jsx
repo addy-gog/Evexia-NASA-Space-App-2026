@@ -16,7 +16,7 @@ export default function SourceTags({ ids = [], className = '' }) {
             href={s.url}
             target="_blank"
             rel="noreferrer noopener"
-            className="rounded border border-line px-1.5 py-0.5 underline-offset-2 hover:border-accent hover:text-accent hover:underline"
+            className="rounded border border-line px-1.5 py-0.5 underline-offset-2 hover:border-accent hover:text-accent-text hover:underline"
             title={label}
           >
             {id}

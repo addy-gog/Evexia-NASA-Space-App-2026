@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
-const STATUS = { ok: '#1E9E61', warn: '#E08A00', crit: '#D92332', think: '#1F4FD8' };
+const STATUS = { ok: '#22C55E', warn: '#F59E0B', crit: '#F43F5E', think: '#FF4D55' };
 
 function Astronaut({ status, waving, thinking, pointer }) {
   const root = useRef();
@@ -21,7 +21,7 @@ function Astronaut({ status, waving, thinking, pointer }) {
   const seam = useMemo(() => new THREE.MeshStandardMaterial({ color: '#B8C3D2', roughness: 0.6 }), []);
   const pack = useMemo(() => new THREE.MeshStandardMaterial({ color: '#C9D2DF', roughness: 0.6 }), []);
   const visor = useMemo(() => new THREE.MeshStandardMaterial({ color: '#14213D', roughness: 0.15, metalness: 0.4 }), []);
-  const chest = useMemo(() => new THREE.MeshStandardMaterial({ color: '#1F4FD8', roughness: 0.4 }), []);
+  const chest = useMemo(() => new THREE.MeshStandardMaterial({ color: '#D7333A', roughness: 0.4 }), []);
   const light = useMemo(() => new THREE.MeshStandardMaterial({ color: STATUS.ok, emissive: STATUS.ok, emissiveIntensity: 0.6 }), []);
   useEffect(() => () => [suit, seam, pack, visor, chest, light].forEach((m) => m.dispose()), [suit, seam, pack, visor, chest, light]);
   useEffect(() => {

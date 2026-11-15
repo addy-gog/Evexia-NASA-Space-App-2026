@@ -57,7 +57,7 @@ export default function AlertCard({ alert, reading, delaySeconds, environment, o
         </section>
         <section>
           <h4 className="text-sm font-bold">
-            Why it matters in spaceflight <span className="font-normal text-accent">· Hazard: {hazard.label}</span>
+            Why it matters in spaceflight <span className="font-normal text-accent-text">· Hazard: {hazard.label}</span>
           </h4>
           <p className="text-sm">{g.why}</p>
         </section>

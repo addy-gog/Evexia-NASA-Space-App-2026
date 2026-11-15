@@ -8,7 +8,7 @@ export default function CompanionStill({ light = '#1E9E61', size = 96 }) {
       <rect x="21" y="56" width="11" height="22" rx="5.5" fill="#FFFFFF" stroke="#B8C3D2" strokeWidth="2" transform="rotate(18 26 60)" />
       <rect x="64" y="54" width="11" height="22" rx="5.5" fill="#FFFFFF" stroke="#B8C3D2" strokeWidth="2" transform="rotate(-24 70 58)" />
       <rect x="31" y="52" width="34" height="30" rx="11" fill="#FFFFFF" stroke="#B8C3D2" strokeWidth="2" />
-      <rect x="42" y="61" width="12" height="8" rx="2" fill="#1F4FD8" />
+      <rect x="42" y="61" width="12" height="8" rx="2" fill="#D7333A" />
       <rect x="36" y="78" width="10" height="14" rx="4" fill="#FFFFFF" stroke="#B8C3D2" strokeWidth="2" />
       <rect x="50" y="78" width="10" height="14" rx="4" fill="#FFFFFF" stroke="#B8C3D2" strokeWidth="2" />
       <circle cx="48" cy="36" r="20" fill="#FFFFFF" stroke="#B8C3D2" strokeWidth="2" />

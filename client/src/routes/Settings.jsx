@@ -4,6 +4,7 @@ import { ENVIRONMENTS, ENVIRONMENT_IDS, BASELINE_RULES, VALID_RANGES } from '../
 import { formatDelay } from '../lib/comms.js';
 import { validateReading } from '../lib/severity.js';
 import { Avatar } from '../components/Brand.jsx';
+import { ThemeToggle } from '../components/Layout.jsx';
 
 const BASE_FIELDS = [
   ['hr', 'Resting heart rate', 'bpm', 1],
@@ -61,7 +62,7 @@ export default function Settings() {
               const e = ENVIRONMENTS[id];
               return (
                 <label key={id} className={`flex min-h-touch cursor-pointer items-start gap-3 rounded border p-3 ${s.environment === id ? 'border-accent bg-accent-soft' : 'border-line'}`}>
-                  <input type="radio" name="env" className="mt-1 h-5 w-5 accent-[#1F4FD8]" checked={s.environment === id} onChange={() => s.setEnvironment(id)} data-testid={`env-${id}`} />
+                  <input type="radio" name="env" className="mt-1 h-5 w-5 accent-[#FF4D55]" checked={s.environment === id} onChange={() => s.setEnvironment(id)} data-testid={`env-${id}`} />
                   <span>
                     <span className="font-semibold">{e.label}</span>
                     <span className="block text-xs text-ink-3">
@@ -149,10 +150,17 @@ export default function Settings() {
         <h2 id="a11y-h" className="text-lg font-bold">Accessibility</h2>
         <div className="divide-y divide-line">
           <div className="flex flex-wrap items-center justify-between gap-3 py-2">
+            <span>
+              <span className="block font-semibold">Appearance</span>
+              <span className="block text-sm text-ink-3">Dark (deep space) is the default. Light suits bright cabins and daylight.</span>
+            </span>
+            <ThemeToggle className="w-full sm:w-auto sm:min-w-[220px]" />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 py-2">
             <span className="font-semibold" id="ts-label">Text size</span>
             <div role="group" aria-labelledby="ts-label" className="flex gap-2">
               {[['md', 'Normal'], ['lg', 'Large'], ['xl', 'Extra large']].map(([v, l]) => (
-                <button key={v} type="button" aria-pressed={s.textSize === v} className={`btn-ghost ${s.textSize === v ? 'border-accent text-accent' : ''}`} onClick={() => s.setTextSize(v)}>
+                <button key={v} type="button" aria-pressed={s.textSize === v} className={`btn-ghost ${s.textSize === v ? 'border-accent text-accent-text' : ''}`} onClick={() => s.setTextSize(v)}>
                   {l}
                 </button>
               ))}

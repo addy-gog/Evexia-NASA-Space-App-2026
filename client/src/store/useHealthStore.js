@@ -68,6 +68,7 @@ const initial = {
   priorDose: 0,
   logs: [],
   textSize: 'md',
+  theme: 'dark', // 'dark' (default, deep space) or 'light'
   highContrast: false,
   reducedMotion: null,
   simpleView: false,
@@ -151,6 +152,7 @@ export const useHealthStore = create(
         setMission: (patch) => update(patch), // missionStart, lastConference, priorDose
         setTextSize: (textSize) => set({ textSize }),
         setHighContrast: (highContrast) => set({ highContrast }),
+        setTheme: (theme) => set({ theme: theme === 'light' ? 'light' : 'dark' }),
         setReducedMotion: (reducedMotion) => set({ reducedMotion }),
         setSimpleView: (simpleView) => set({ simpleView }),
         setAutoSync: (autoSync) => set({ autoSync: { ...get().autoSync, ...autoSync } }),
@@ -273,6 +275,7 @@ export const useHealthStore = create(
         priorDose: s.priorDose,
         logs: s.logs.slice(-3000),
         textSize: s.textSize,
+        theme: s.theme,
         highContrast: s.highContrast,
         reducedMotion: s.reducedMotion,
         simpleView: s.simpleView,

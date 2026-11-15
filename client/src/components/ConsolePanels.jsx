@@ -37,7 +37,7 @@ function SliderRow({ field, value, onChange, label }) {
         step={f.step}
         value={value}
         onChange={(e) => onChange(field, e.target.value)}
-        className="h-11 w-[88px] flex-none rounded-[10px] border border-[#C9D1DC] bg-surface px-2.5 font-mono text-[15px] text-ink"
+        className="h-11 w-[88px] flex-none rounded-[10px] border border-ink/25 bg-surface px-2.5 font-mono text-[15px] text-ink"
         data-testid={`console-input-${field}`}
       />
     </div>
@@ -60,7 +60,7 @@ export function ReadingCard({ meta, result, snap, values, onChange, selected, on
   }
   return (
     <div
-      className={`flex flex-col gap-2 rounded-tile border px-3.5 py-3 transition-[border-color,box-shadow] hover:border-[#B8C2D3] ${selected ? 'border-accent bg-[#F7F9FF] shadow-sel hover:border-accent' : 'border-line bg-surface'}`}
+      className={`flex flex-col gap-2 rounded-tile border px-3.5 py-3 transition-[border-color,box-shadow] hover:border-ink/40 ${selected ? 'border-accent bg-accent-soft shadow-sel hover:border-accent' : 'border-line bg-surface'}`}
       data-testid={`card-${meta.id}`}
       data-severity={sev ?? (snap?.stale ? 'stale' : 'none')}
     >
@@ -68,14 +68,14 @@ export function ReadingCard({ meta, result, snap, values, onChange, selected, on
         <button type="button" onClick={() => onSelect(meta.id)} aria-pressed={selected} className="flex min-h-touch min-w-0 flex-1 flex-col justify-center text-left">
           <span className="text-[13px] font-semibold text-ink-3">{meta.label}</span>
           <span className="font-mono text-[22px] font-semibold tracking-tight">
-            <span data-testid={`value-${meta.id}`}>{display}</span> <span className="text-xs font-medium text-[#5B6575]">{meta.unit}</span>
+            <span data-testid={`value-${meta.id}`}>{display}</span> <span className="text-xs font-medium text-ink-3">{meta.unit}</span>
           </span>
         </button>
         {sev ? <StatusBadge severity={sev} compact /> : <span className="text-xs text-ink-3">{snap?.stale ? 'Out of date' : 'No data'}</span>}
       </div>
       <SliderRow field={fieldsOf[meta.id][0]} value={values[fieldsOf[meta.id][0]]} onChange={onChange} label={meta.id === 'bp' ? 'Systolic' : null} />
       {meta.id === 'bp' && <SliderRow field="dia" value={values.dia} onChange={onChange} label="Diastolic" />}
-      <div className="flex flex-wrap justify-between gap-2 text-xs text-[#5B6575]">
+      <div className="flex flex-wrap justify-between gap-2 text-xs text-ink-3">
         <span>{rangeText(meta.id, environment)}</span>
         {delta && <span className="font-mono text-ink-2" data-testid={`delta-${meta.id}`}>{delta}</span>}
       </div>
@@ -85,7 +85,7 @@ export function ReadingCard({ meta, result, snap, values, onChange, selected, on
           {snap.stale ? ' · out of date, not counted' : ''}
         </p>
       )}
-      {edited && <p className="text-xs font-semibold text-accent">Edited · not saved yet</p>}
+      {edited && <p className="text-xs font-semibold text-accent-text">Edited · not saved yet</p>}
       {result?.spe && <p className="text-xs font-semibold text-crit-fg">Solar particle event alert</p>}
     </div>
   );
@@ -99,19 +99,23 @@ export function HealthScoreRing({ score, counts }) {
   const m = SEVERITY_META[sev];
   const C = 2 * Math.PI * 54;
   return (
-    <section className="hud-panel flex flex-col gap-3.5" aria-labelledby="h-score" data-testid="score-gauge" data-score={value ?? ''} data-band={band?.label ?? ''}>
-      <h2 id="h-score" className="hud-title">Health score</h2>
+    <section className="hud-feature flex flex-col gap-3.5" aria-labelledby="h-score" data-testid="score-gauge" data-score={value ?? ''} data-band={band?.label ?? ''}>
+      <div className="flex items-center justify-between gap-2">
+        <h2 id="h-score" className="hud-title text-white">Health score</h2>
+        <span className="rounded-full border border-ink/15 bg-ink/[0.06] px-2.5 py-1 text-[11px] font-semibold text-ink-2">Today</span>
+      </div>
       {value == null ? (
         <p className="text-sm text-ink-3">No current readings yet. Log readings or sync a wearable.</p>
       ) : (
         <div className="flex flex-wrap items-center gap-4">
-          <div className="relative h-[132px] w-[132px] flex-none">
-            <svg width="132" height="132" viewBox="0 0 132 132" role="img" aria-label={`Health score ${value} of 100, ${band.label}`}>
-              <circle cx="66" cy="66" r="54" fill="none" stroke="#EEF1F5" strokeWidth="12" />
-              <circle cx="66" cy="66" r="54" fill="none" stroke={m.color} strokeWidth="12" strokeLinecap="round" strokeDasharray={`${((value / 100) * C).toFixed(1)} ${C.toFixed(1)}`} transform="rotate(-90 66 66)" style={{ transition: 'stroke-dasharray .5s ease-out' }} />
+          <div className="relative h-[148px] w-[148px] flex-none">
+            <svg width="148" height="148" viewBox="-8 -8 148 148" className="overflow-visible" role="img" aria-label={`Health score ${value} of 100, ${band.label}`}>
+              <circle cx="66" cy="66" r="66" fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="5" strokeDasharray="1.2 5.71" />
+              <circle cx="66" cy="66" r="54" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="12" />
+              <circle cx="66" cy="66" r="54" fill="none" stroke={m.color} strokeWidth="12" strokeLinecap="round" strokeDasharray={`${((value / 100) * C).toFixed(1)} ${C.toFixed(1)}`} transform="rotate(-90 66 66)" style={{ transition: "stroke-dasharray .5s ease-out", filter: `drop-shadow(0 0 8px ${m.color})` }} />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-mono text-[34px] font-semibold tracking-tighter">{value}</span>
+              <span className="font-mono text-[40px] font-semibold tracking-tighter text-white">{value}</span>
               <span className="text-[11px] text-ink-3">of 100</span>
             </div>
           </div>
@@ -139,7 +143,7 @@ export function EarthLinkCard({ environment, delaySeconds, anyCritical, onSend, 
     <section className="hud-panel flex flex-col gap-3" aria-labelledby="h-comms" data-testid="earth-link-card">
       <div className="flex items-center justify-between gap-2">
         <h2 id="h-comms" className="hud-title">Earth link</h2>
-        <span className="rounded-full px-2.5 py-1 text-xs font-bold" style={auto ? { background: '#FFF1D6', color: '#8A4B00' } : { background: '#E8EEFC', color: '#163BA6' }} data-testid="link-mode">
+        <span className="rounded-full px-2.5 py-1 text-xs font-bold" style={auto ? { background: 'rgb(var(--warn-bg))', color: 'rgb(var(--warn-fg))' } : { background: 'rgb(var(--accent-soft))', color: 'rgb(var(--accent-text))' }} data-testid="link-mode">
           {auto ? 'Autonomy mode' : 'Ground-linked'}
         </span>
       </div>
@@ -199,7 +203,7 @@ export function HazardList({ results, hazards, delaySeconds }) {
               <span className="block h-2.5 w-2.5 rounded-full" style={{ background: SEVERITY_META[r.sev].color }} aria-hidden="true" />
               {HAZARDS[r.id].label}
             </span>
-            <span className="text-xs font-semibold" style={{ color: r.sev === 'green' ? '#4A5568' : SEVERITY_META[r.sev].fg }}>{r.text}</span>
+            <span className="text-xs font-semibold" style={{ color: r.sev === 'green' ? 'rgb(var(--c-ink-3))' : SEVERITY_META[r.sev].fg }}>{r.text}</span>
           </li>
         ))}
       </ul>
@@ -262,14 +266,14 @@ export function TrendPanel({ logs, environment, now, metric, onMetric, title = '
         <div className="h-[220px]" role="img" aria-label={aria}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 8, right: 14, bottom: 0, left: -10 }}>
-              <ReferenceArea y1={b.amber[0]} y2={b.amber[1]} fill="#FFF1D6" fillOpacity={0.9} stroke="none" ifOverflow="hidden" />
-              <ReferenceArea y1={b.green[0]} y2={b.green[1]} fill="#E2F4EA" fillOpacity={1} stroke="none" ifOverflow="hidden" />
+              <ReferenceArea y1={b.amber[0]} y2={b.amber[1]} fill="rgb(var(--warn-bg))" fillOpacity={0.9} stroke="none" ifOverflow="hidden" />
+              <ReferenceArea y1={b.green[0]} y2={b.green[1]} fill="rgb(var(--ok-bg))" fillOpacity={1} stroke="none" ifOverflow="hidden" />
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="t" type="number" scale="time" domain={[from, now]} tickFormatter={(t) => new Date(t).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} tickCount={6} />
               <YAxis domain={b.domain} width={46} allowDataOverflow />
-              <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #DDE2E9' }} labelFormatter={(t) => formatDateTime(t)} formatter={(v) => [`${v} ${meta.unit}`, meta.short]} />
-              <Line type="monotone" dataKey="v" stroke="#1F4FD8" strokeWidth={2.5} dot={false} isAnimationActive={false} />
-              {last && <ReferenceDot x={last.t} y={last.v} r={6} fill="#1F4FD8" stroke="#FFFFFF" strokeWidth={3} />}
+              <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid rgb(var(--c-line))' }} labelFormatter={(t) => formatDateTime(t)} formatter={(v) => [`${v} ${meta.unit}`, meta.short]} />
+              <Line type="monotone" dataKey="v" stroke="#FF4D55" strokeWidth={2.5} dot={false} isAnimationActive={false} />
+              {last && <ReferenceDot x={last.t} y={last.v} r={6} fill="#FF4D55" stroke="#FFFFFF" strokeWidth={3} />}
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -277,7 +281,7 @@ export function TrendPanel({ logs, environment, now, metric, onMetric, title = '
       <p className="flex flex-wrap gap-3 text-xs text-ink-3">
         <span className="flex items-center gap-1.5"><span className="block h-3 w-3 rounded-sm bg-ok-bg ring-1 ring-ok-line" aria-hidden="true" />Nominal band</span>
         <span className="flex items-center gap-1.5"><span className="block h-3 w-3 rounded-sm bg-warn-bg ring-1 ring-warn-line" aria-hidden="true" />Caution band</span>
-        <Link to="/history" className="ml-auto font-semibold text-accent underline-offset-2 hover:underline">Full history</Link>
+        <Link to="/history" className="ml-auto font-semibold text-accent-text underline-offset-2 hover:underline">Full history</Link>
       </p>
     </section>
   );
@@ -348,7 +352,7 @@ export function EnvironmentSegmented({ value, onChange }) {
 export function BaselineSwitch({ on, onToggle }) {
   return (
     <button type="button" aria-pressed={on} onClick={onToggle} className="flex min-h-[48px] items-center gap-2.5 rounded-tile border border-line bg-surface py-1.5 pl-2 pr-3.5 font-semibold text-ink" data-testid="baseline-switch">
-      <span className={`relative block h-6 w-10 rounded-full transition-colors ${on ? 'bg-accent' : 'bg-[#C9D1DC]'}`} aria-hidden="true">
+      <span className={`relative block h-6 w-10 rounded-full transition-colors ${on ? 'bg-accent' : 'bg-ink/25'}`} aria-hidden="true">
         <span className={`absolute top-[3px] block h-[18px] w-[18px] rounded-full bg-white shadow transition-all ${on ? 'left-[19px]' : 'left-[3px]'}`} />
       </span>
       Personal baseline

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useHealthStore } from '../store/useHealthStore.js';
 import { LogoMark, Avatar } from './Brand.jsx';
-import { Disclaimer, TextSizeToggle } from './Layout.jsx';
+import { Disclaimer, TextSizeToggle, ThemeToggle } from './Layout.jsx';
 import Toast from './Toast.jsx';
 
 const NAV = [
@@ -27,11 +27,11 @@ export default function SurgeonLayout() {
       <a href="#main" className="sr-only-focusable fixed left-2 top-2 z-[60] rounded-input bg-accent px-4 py-2 font-bold text-white">
         Skip to main content
       </a>
-      <aside className="flex flex-col gap-4 border-b border-line bg-surface p-4 lg:sticky lg:top-0 lg:h-screen lg:w-[264px] lg:flex-none lg:border-b-0 lg:border-r">
+      <aside className="flex flex-col gap-4 border-b border-ink/[0.06] bg-[rgb(var(--chrome)/0.90)] p-4 lg:sticky lg:top-0 lg:h-screen lg:w-[264px] lg:flex-none lg:border-b-0 lg:border-r lg:border-ink/[0.06]">
         <div className="flex items-center gap-2.5">
           <LogoMark size={36} />
           <span className="flex flex-col leading-tight">
-            <span className="font-display text-xl font-bold">Evexia</span>
+            <span className="font-display text-xl font-bold tracking-tight">Evexia</span>
             <span className="text-[11px] font-medium text-ink-3">Flight surgeon</span>
           </span>
         </div>
@@ -41,7 +41,7 @@ export default function SurgeonLayout() {
               key={n.to}
               to={n.to}
               end={n.end}
-              className={({ isActive }) => `flex min-h-touch items-center gap-3 rounded-input px-3 text-[15px] ${isActive ? 'bg-accent-soft font-semibold text-accent' : 'font-medium text-ink-2 hover:bg-surface-2'}`}
+              className={({ isActive }) => `flex min-h-touch items-center gap-3 rounded-full px-4 text-[15px] transition-colors duration-200 ${isActive ? "bg-accent font-semibold text-white shadow-glow" : "font-medium text-ink-2 hover:bg-ink/[0.06] hover:text-ink"}`}
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d={n.icon} />
@@ -50,10 +50,11 @@ export default function SurgeonLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto hidden lg:block">
+        <div className="mt-auto hidden flex-col gap-2 lg:flex">
+          <ThemeToggle />
           <TextSizeToggle />
         </div>
-        <div className="flex items-center gap-3 rounded-card border border-line p-2.5 lg:mt-2">
+        <div className="flex items-center gap-3 rounded-card border border-ink/10 bg-ink/[0.03] p-2.5 lg:mt-2">
           <Avatar src={user?.avatar} name={user?.name} size={40} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{user?.name}</p>

@@ -131,7 +131,7 @@ export default function BodyPage() {
             </div>
           )}
 
-          <div className="relative h-[480px] w-full overflow-hidden rounded-2xl border border-[#E6EAF0] bg-[#F7F9FC] sm:h-[600px]" data-testid="body-stage" data-mode={show3D ? '3d' : '2d'}>
+          <div className="relative h-[480px] w-full overflow-hidden rounded-2xl border border-line bg-[radial-gradient(ellipse_at_50%_30%,rgb(var(--stage-glow)),rgb(var(--stage-bg))_70%)] sm:h-[600px]" data-testid="body-stage" data-mode={show3D ? '3d' : '2d'}>
             {show3D ? (
               <ViewerBoundary fallback={twoD}>
                 <Suspense fallback={null}>
@@ -176,7 +176,7 @@ export default function BodyPage() {
 
           <p className="max-w-[58ch] text-xs text-ink-3">
             3D models: {MODEL_CREDITS.map((c) => `${c.title} by ${c.author} (${c.licence.split(',')[0]})`).join('; ')}.{' '}
-            <Link to="/credits" className="font-semibold text-accent underline-offset-2 hover:underline">Full credits</Link>
+            <Link to="/credits" className="font-semibold text-accent-text underline-offset-2 hover:underline">Full credits</Link>
           </p>
         </section>
 
@@ -196,7 +196,7 @@ export default function BodyPage() {
                       data-testid={`body-reading-${m.id}`}
                       className={`flex min-h-touch w-full items-center gap-3 rounded-input px-3 text-left text-sm ${active ? 'bg-accent-soft' : 'hover:bg-surface-2'}`}
                     >
-                      {r ? <StatusIcon severity={r.severity} size={16} /> : <span className="block h-3 w-3 rounded-full bg-[#9AA6B8]" aria-hidden="true" />}
+                      {r ? <StatusIcon severity={r.severity} size={16} /> : <span className="block h-3 w-3 rounded-full bg-ink-3" aria-hidden="true" />}
                       <span className="min-w-0 flex-1">
                         <span className="block font-semibold text-ink">{m.short}</span>
                         <span className="block text-xs text-ink-3">{PART_NAMES[m.id]}</span>
@@ -212,7 +212,7 @@ export default function BodyPage() {
             </ul>
             {INDICATORS.every((m) => !regions[m.id]) && (
               <p className="mt-2 text-sm text-ink-3">
-                Nothing logged yet, so every marker is grey. <Link to="/log" className="font-semibold text-accent underline-offset-2 hover:underline">Log your readings</Link>
+                Nothing logged yet, so every marker is grey. <Link to="/log" className="font-semibold text-accent-text underline-offset-2 hover:underline">Log your readings</Link>
               </p>
             )}
           </section>

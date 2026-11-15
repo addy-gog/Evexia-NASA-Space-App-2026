@@ -12,6 +12,7 @@ import Credits from './routes/Credits.jsx';
 import Emergency from './routes/Emergency.jsx';
 import Telemetry from './routes/Telemetry.jsx';
 import { LogoMark } from './components/Brand.jsx';
+import SpaceBackground from './components/SpaceBackground.jsx';
 import { useHealthStore } from './store/useHealthStore.js';
 import { useTelemetryStream, useAutoSync } from './hooks/useTelemetry.js';
 import { api } from './lib/api.js';
@@ -28,13 +29,16 @@ function useDocumentSettings() {
   const textSize = useHealthStore((s) => s.textSize);
   const highContrast = useHealthStore((s) => s.highContrast);
   const reducedMotion = useHealthStore((s) => s.reducedMotion);
+  const theme = useHealthStore((s) => s.theme);
   useEffect(() => {
     const el = document.documentElement;
     el.dataset.textSize = textSize;
+    el.dataset.theme = theme === 'light' ? 'light' : 'dark';
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#EEF2F8' : '#050A18');
     el.dataset.contrast = highContrast ? 'high' : 'normal';
     if (reducedMotion === null) delete el.dataset.reducedMotion;
     else el.dataset.reducedMotion = String(reducedMotion);
-  }, [textSize, highContrast, reducedMotion]);
+  }, [textSize, highContrast, reducedMotion, theme]);
 }
 
 function useConnectionMonitor() {
@@ -74,7 +78,7 @@ function useSessionAndClock() {
 
 function Splash() {
   return (
-    <div className="flex min-h-screen items-center justify-center gap-3 bg-bg text-ink-3" role="status">
+    <div className="flex min-h-screen items-center justify-center gap-3 text-ink-3" role="status">
       <LogoMark size={40} /> Connecting to Evexia…
     </div>
   );
@@ -117,6 +121,8 @@ export default function App() {
   useAutoSync();
   const checked = useHealthStore((s) => s.sessionChecked);
   return (
+    <>
+    <SpaceBackground />
     <Routes>
       <Route path="login" element={checked ? <Login /> : <Splash />} />
       <Route
@@ -155,5 +161,6 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
+    </>
   );
 }

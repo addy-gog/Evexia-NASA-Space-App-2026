@@ -52,7 +52,7 @@ export default function TrendChart({ id, title, unit, data, bands, lines, domain
                 <ReferenceLine key={r.y + r.label} y={r.y} stroke="#94a3b8" strokeDasharray="4 4" label={{ value: r.label, position: 'insideTopRight', fill: '#94a3b8', fontSize: 11 }} />
               ))}
               <Tooltip
-                contentStyle={{ background: 'rgb(12 22 44)', border: '1px solid rgb(40 64 110)', borderRadius: 6, color: '#e8eef8' }}
+                contentStyle={{ background: 'rgb(var(--c-surface))', border: '1px solid rgb(var(--c-line))', borderRadius: 6, color: 'rgb(var(--c-ink))' }}
                 labelFormatter={(t) => formatDateTime(t)}
                 formatter={(v, name) => [`${v} ${unit}`, name]}
               />

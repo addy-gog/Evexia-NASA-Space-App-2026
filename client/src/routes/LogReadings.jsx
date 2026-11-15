@@ -203,7 +203,7 @@ export default function LogReadings() {
             />
           </label>
           <label className="flex min-h-touch items-center gap-3">
-            <input type="checkbox" className="h-6 w-6 accent-[#B3141F]" checked={spe} onChange={(e) => setSpe(e.target.checked)} data-testid="input-spe" />
+            <input type="checkbox" className="h-6 w-6 accent-[#D7333A]" checked={spe} onChange={(e) => setSpe(e.target.checked)} data-testid="input-spe" />
             <span className="font-semibold">Solar particle event alert is active</span>
           </label>
         </div>
@@ -232,7 +232,7 @@ export default function LogReadings() {
       <section className="hud-panel" aria-labelledby="recent-h">
         <div className="flex items-center justify-between">
           <h2 id="recent-h" className="text-lg font-bold">Recent log entries</h2>
-          <Link to="/history" className="inline-flex min-h-touch items-center text-sm text-accent underline-offset-2 hover:underline">Full history</Link>
+          <Link to="/history" className="inline-flex min-h-touch items-center text-sm text-accent-text underline-offset-2 hover:underline">Full history</Link>
         </div>
         <LogTable logs={recent} compact />
       </section>

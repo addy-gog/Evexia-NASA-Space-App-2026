@@ -42,7 +42,7 @@ export default function Alerts() {
           <div>
             <p className="font-semibold">No active alerts.</p>
             <p className="text-sm text-ink-3">
-              {status.hasData ? 'All current readings are green.' : 'No current readings.'} <Link to="/log" className="text-accent underline">Log new readings</Link> or review your <Link to="/history" className="text-accent underline">history</Link>.
+              {status.hasData ? 'All current readings are green.' : 'No current readings.'} <Link to="/log" className="text-accent-text underline">Log new readings</Link> or review your <Link to="/history" className="text-accent-text underline">history</Link>.
             </p>
           </div>
         </section>

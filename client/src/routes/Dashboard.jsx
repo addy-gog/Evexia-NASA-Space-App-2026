@@ -45,7 +45,7 @@ function LiveStrip() {
   return (
     <section className="hud-panel flex flex-wrap items-center gap-x-5 gap-y-2" aria-label="Live wearable telemetry" data-testid="live-strip">
       <h2 className="hud-title flex items-center gap-2">
-        <span className={`block h-2 w-2 rounded-full ${stream === 'live' ? 'blink bg-ok-dot' : 'bg-[#9AA6B8]'}`} aria-hidden="true" />
+        <span className={`block h-2 w-2 rounded-full ${stream === 'live' ? 'blink bg-ok-dot' : 'bg-ink-3/60'}`} aria-hidden="true" />
         Live wearables
       </h2>
       {recent.length ? (
@@ -212,7 +212,7 @@ export default function Dashboard() {
       <section className="hud-panel" aria-labelledby="dash-recent">
         <div className="flex items-center justify-between">
           <h2 id="dash-recent" className="hud-title">Latest log entries</h2>
-          <Link to="/history" className="inline-flex min-h-touch items-center text-sm font-semibold text-accent underline-offset-2 hover:underline">History</Link>
+          <Link to="/history" className="inline-flex min-h-touch items-center text-sm font-semibold text-accent-text underline-offset-2 hover:underline">History</Link>
         </div>
         <LogTable logs={[...crewLogs].reverse().slice(0, 5)} compact />
       </section>

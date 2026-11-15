@@ -119,3 +119,36 @@ test.describe('Body page', () => {
     await expect(credits).toContainText('CC BY 4.0');
   });
 });
+
+test.describe('Console body map', () => {
+  test.beforeEach(() => {
+    test.setTimeout(150_000); // model download on a busy laptop
+  });
+
+  test('on a fast connection the Console shows the realistic body with all six markers', async ({ page }) => {
+    await connection(page, '4g');
+    await signIn(page, 'okafor');
+    await expect(page.getByTestId('body-container')).toHaveAttribute('data-view', '3d');
+    const body = page.getByTestId('body-3d');
+    await expect(body).toHaveAttribute('data-model', 'realistic', { timeout: MODEL_TIMEOUT });
+    await expect(body.locator('canvas')).toBeVisible({ timeout: MODEL_TIMEOUT });
+    for (const id of ['hr', 'bp', 'glucose', 'temp', 'sleep', 'radiation']) await expect(page.getByTestId(`hotspot-${id}`)).toBeVisible({ timeout: MODEL_TIMEOUT });
+    await expect(page.getByTestId('load-realistic-body')).toHaveCount(0);
+    await page.getByTestId('hotspot-glucose').click();
+    await expect(page.getByTestId('reading-detail')).toHaveAttribute('data-indicator', 'glucose');
+  });
+
+  test('on a slow connection the Console shows the light body until asked, then remembers', async ({ page }) => {
+    await connection(page, '2g');
+    await signIn(page, 'okafor');
+    await expect(page.getByTestId('body-container')).toHaveAttribute('data-view', '3d');
+    await expect(page.getByTestId('body-3d')).not.toHaveAttribute('data-model', 'realistic');
+    const load = page.getByTestId('load-realistic-body');
+    await expect(load).toContainText('MB');
+    await load.click();
+    await expect(page.getByTestId('body-3d')).toHaveAttribute('data-model', 'realistic');
+    await page.reload();
+    await expect(page.getByTestId('body-3d')).toHaveAttribute('data-model', 'realistic');
+    await expect(page.getByTestId('load-realistic-body')).toHaveCount(0);
+  });
+});

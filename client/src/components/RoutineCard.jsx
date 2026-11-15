@@ -59,7 +59,7 @@ export default function RoutineCard({ logs, snapshot, now }) {
           <ul className="mt-1.5 flex flex-col">
             {rechecks.slice(0, 3).map((n) => (
               <li key={n.id} className="flex items-center gap-3 border-b border-line/60 py-1.5 text-sm last:border-0" data-testid="recheck" data-due={n.due}>
-                <span className={`block h-2 w-2 flex-none rounded-full ${n.due ? 'bg-warn-dot' : 'bg-[#9AA6B8]'}`} aria-hidden="true" />
+                <span className={`block h-2 w-2 flex-none rounded-full ${n.due ? 'bg-warn-dot' : 'bg-ink-3/60'}`} aria-hidden="true" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{n.summary}</span>
                   <span className={`text-xs ${n.due ? 'font-semibold text-warn-fg' : 'text-ink-3'}`}>
@@ -89,7 +89,7 @@ export default function RoutineCard({ logs, snapshot, now }) {
               {due.slice(0, 4).map((d) => (
                 <li key={d.id} className="flex items-center justify-between gap-3 border-b border-line/60 py-1.5 text-sm last:border-0" data-testid={`due-${d.id}`}>
                   <span className="flex items-center gap-2">
-                    <span className={`block h-2 w-2 flex-none rounded-full ${d.overdue ? 'bg-warn-dot' : 'bg-[#9AA6B8]'}`} aria-hidden="true" />
+                    <span className={`block h-2 w-2 flex-none rounded-full ${d.overdue ? 'bg-warn-dot' : 'bg-ink-3/60'}`} aria-hidden="true" />
                     {d.label}
                   </span>
                   <span className={`text-xs ${d.overdue ? 'font-semibold text-warn-fg' : 'text-ink-3'}`}>

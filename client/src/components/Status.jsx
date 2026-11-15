@@ -4,9 +4,9 @@
  * Internal severity keys stay green / amber / red.
  */
 export const SEVERITY_META = {
-  green: { label: 'Nominal', word: 'Nominal', color: '#1E9E61', fg: '#0B6B41', bg: '#E2F4EA', line: '#9ED3B6', glow: 'rgba(30,158,97,0.26)', text: 'text-ok-fg', border: 'border-ok-line', bgClass: 'bg-ok-bg', dotClass: 'bg-ok-dot' },
-  amber: { label: 'Caution', word: 'Caution', color: '#E08A00', fg: '#8A4B00', bg: '#FFF1D6', line: '#F0C77A', glow: 'rgba(224,138,0,0.34)', text: 'text-warn-fg', border: 'border-warn-line', bgClass: 'bg-warn-bg', dotClass: 'bg-warn-dot' },
-  red: { label: 'Critical', word: 'Critical', color: '#D92332', fg: '#B3141F', bg: '#FDE6E8', line: '#F2A3AA', glow: 'rgba(217,35,50,0.38)', text: 'text-crit-fg', border: 'border-crit-line', bgClass: 'bg-crit-bg', dotClass: 'bg-crit-dot' },
+  green: { label: 'Nominal', word: 'Nominal', color: '#22C55E', fg: 'rgb(var(--ok-fg))', bg: 'rgb(var(--ok-bg))', line: 'rgb(var(--ok-line))', glow: 'rgba(30,158,97,0.26)', text: 'text-ok-fg', border: 'border-ok-line', bgClass: 'bg-ok-bg', dotClass: 'bg-ok-dot' },
+  amber: { label: 'Caution', word: 'Caution', color: '#F59E0B', fg: 'rgb(var(--warn-fg))', bg: 'rgb(var(--warn-bg))', line: 'rgb(var(--warn-line))', glow: 'rgba(224,138,0,0.34)', text: 'text-warn-fg', border: 'border-warn-line', bgClass: 'bg-warn-bg', dotClass: 'bg-warn-dot' },
+  red: { label: 'Critical', word: 'Critical', color: '#F43F5E', fg: 'rgb(var(--crit-fg))', bg: 'rgb(var(--crit-bg))', line: 'rgb(var(--crit-line))', glow: 'rgba(217,35,50,0.38)', text: 'text-crit-fg', border: 'border-crit-line', bgClass: 'bg-crit-bg', dotClass: 'bg-crit-dot' },
 };
 
 export const GRADE_OF = { green: 0, amber: 1, red: 2 };
@@ -62,7 +62,7 @@ export function StatusBadge({ severity = 'green', compact = false, pulse = false
   return (
     <span
       className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ${className}`}
-      style={{ background: m.bg, color: m.fg }}
+      style={{ background: m.bg, color: m.fg, boxShadow: `inset 0 0 0 1px ${m.line}` }}
       data-severity={severity}
     >
       <StatusIcon severity={severity} size={14} className={pulse ? (severity === 'red' ? 'pulse-fast' : severity === 'amber' ? 'pulse-slow' : '') : ''} />

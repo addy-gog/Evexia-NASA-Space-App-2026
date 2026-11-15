@@ -42,7 +42,7 @@ export default function LogTable({ logs, compact = false, onDelete, allLogs, ctx
               <td className="num whitespace-nowrap pr-3" data-testid="log-time">{formatTime(log.ts)}</td>
               {!compact && <td className="num pr-3">{missionDayOf(log.ts, ctx.missionStart) ?? '—'}</td>}
               <td className="pr-3">
-                <span className={`rounded border px-1.5 py-0.5 text-xs ${log.source === 'wearable' ? 'border-accent text-accent' : log.source === 'sample' ? 'border-line text-ink-3' : 'border-ink-dim'}`}>
+                <span className={`rounded border px-1.5 py-0.5 text-xs ${log.source === 'wearable' ? 'border-accent text-accent-text' : log.source === 'sample' ? 'border-line text-ink-3' : 'border-ink-dim'}`}>
                   {SOURCE_LABEL[log.source] ?? log.source}
                 </span>
                 {log.device && log.source !== 'manual' && <span className="block text-xs text-ink-3">{log.device}</span>}
