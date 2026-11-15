@@ -4,6 +4,6 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://evexia-nasa-space-app-2026.onrender.com/api/:path*" },
-    { "source": "/((?!api/|assets/|models/|favicon.svg).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|assets/|models/|favicon.svg|sw.js|registerSW.js|manifest.webmanifest|workbox-).*)", "destination": "/index.html" }
   ]
 }
