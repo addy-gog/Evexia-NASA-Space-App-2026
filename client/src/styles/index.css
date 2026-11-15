@@ -1,0 +1,143 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Light clinical theme (default) */
+:root {
+  --c-bg: 244 246 248;        /* #F4F6F8 */
+  --c-surface: 255 255 255;   /* #FFFFFF */
+  --c-surface-2: 238 241 245; /* #EEF1F5 */
+  --c-line: 221 226 233;      /* #DDE2E9 */
+  --c-ink: 14 23 38;          /* #0E1726 */
+  --c-ink-2: 51 64 79;        /* #33404F */
+  --c-ink-3: 74 85 104;       /* #4A5568 (7.5:1 on white) */
+  color-scheme: light;
+}
+
+/* High-contrast theme: pure white surfaces, black text, dark borders */
+:root[data-contrast='high'] {
+  --c-bg: 255 255 255;
+  --c-surface: 255 255 255;
+  --c-surface-2: 240 240 240;
+  --c-line: 30 30 30;
+  --c-ink: 0 0 0;
+  --c-ink-2: 0 0 0;
+  --c-ink-3: 20 20 20;
+}
+
+/* Text-size toggle (3 levels). Tailwind uses rem, so everything scales. */
+html[data-text-size='md'] { font-size: 16px; }
+html[data-text-size='lg'] { font-size: 18px; }
+html[data-text-size='xl'] { font-size: 20px; }
+
+html, body, #root { min-height: 100%; }
+body {
+  @apply bg-bg font-sans text-ink antialiased;
+  font-size: 0.9375rem; /* 15 px body */
+  line-height: 1.45;
+}
+
+h1, h2, h3 { font-family: 'Space Grotesk', Inter, sans-serif; letter-spacing: -0.01em; }
+
+/* Focus ring: 3 px accent, 2 px offset, on every control */
+:focus-visible {
+  outline: 3px solid #1F4FD8;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@layer components {
+  /* Card: white surface, thin border, no heavy shadow */
+  .hud-panel { @apply relative min-w-0 rounded-card border border-line bg-surface p-5; }
+  .tile { @apply rounded-tile bg-surface-2 p-3; }
+  .hud-title { @apply font-display text-lg font-semibold text-ink; }
+  .page-title { @apply font-display font-bold tracking-tight text-ink; font-size: clamp(26px, 3vw, 36px); }
+  .eyebrow { @apply text-xs font-bold uppercase tracking-[0.08em] text-accent; }
+
+  .btn {
+    @apply inline-flex min-h-[48px] min-w-touch items-center justify-center gap-2 rounded-input border px-4 py-2 font-semibold transition-colors disabled:cursor-not-allowed disabled:border-surface-2 disabled:bg-surface-2 disabled:text-ink-3;
+  }
+  .btn-primary { @apply btn border-accent bg-accent text-white hover:border-accent-strong hover:bg-accent-strong; }
+  .btn-ghost { @apply btn border-line bg-surface text-ink hover:border-[#B8C2D3] hover:bg-surface-2; }
+  .btn-danger { @apply btn border-crit-fg bg-crit-fg text-white hover:bg-[#8F0F19]; } /* white on #B3141F ≈ 6.3:1 */
+  .pill { @apply inline-flex items-center gap-2 rounded-full border border-line bg-bg px-3 py-2 text-[13px] font-semibold; }
+
+  .field {
+    @apply min-h-touch w-full rounded-input border border-[#C9D1DC] bg-surface px-3 py-2 font-mono text-lg text-ink placeholder:text-ink-3;
+  }
+  .field[aria-invalid='true'] { @apply border-crit-dot; }
+  .label { @apply text-sm font-semibold text-ink; }
+  .num { @apply font-mono tabular-nums; }
+}
+
+/* Range sliders: big thumbs for gloves */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 44px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: rgb(var(--c-surface-2)); box-shadow: inset 0 0 0 1px rgb(var(--c-line)); }
+input[type='range']::-moz-range-track { height: 6px; border-radius: 999px; background: rgb(var(--c-surface-2)); }
+input[type='range']::-moz-range-progress { height: 6px; border-radius: 999px; background: #1F4FD8; }
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px; height: 24px; margin-top: -9px; border-radius: 50%;
+  background: #1F4FD8; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(14,23,38,.25);
+}
+input[type='range']::-moz-range-thumb {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #1F4FD8; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(14,23,38,.25);
+}
+
+.sr-only-focusable:not(:focus) {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;
+}
+
+/* Scroll wrappers must be the containing block, so absolutely positioned
+   descendants (e.g. sr-only table headers) are clipped instead of widening the page. */
+.overflow-x-auto { position: relative; }
+
+/* Motion (all disabled by reduced motion) */
+@keyframes evx-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@keyframes evx-ring { 0% { transform: scale(.7); opacity: .85; } 100% { transform: scale(2.6); opacity: 0; } }
+@keyframes evx-blink { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+@keyframes evx-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes evx-spin { to { transform: rotate(360deg); } }
+@keyframes evx-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes evx-dots { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+.pulse-slow { animation: evx-pulse 2.4s ease-in-out infinite; }
+.pulse-fast { animation: evx-pulse 0.8s ease-in-out infinite; }
+.ring-g0 { animation: evx-ring 3.2s ease-out infinite; }
+.ring-g1 { animation: evx-ring 1.6s ease-out infinite; }
+.ring-g2 { animation: evx-ring 1s ease-out infinite; }
+.blink { animation: evx-blink 1.6s ease-in-out infinite; }
+.float { animation: evx-float 3.4s ease-in-out infinite; }
+.orbit { animation: evx-spin 14s linear infinite; }
+.rise { animation: evx-rise .25s ease-out; }
+.dot1 { animation: evx-dots 1.2s infinite; }
+.dot2 { animation: evx-dots 1.2s .2s infinite; }
+.dot3 { animation: evx-dots 1.2s .4s infinite; }
+
+:root[data-reduced-motion='true'] *,
+:root[data-reduced-motion='true'] *::before,
+:root[data-reduced-motion='true'] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduced-motion='false']) *,
+  :root:not([data-reduced-motion='false']) *::before,
+  :root:not([data-reduced-motion='false']) *::after { animation: none !important; transition: none !important; }
+}
+
+/* Recharts on light surfaces */
+.recharts-text { fill: #4A5568; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.recharts-cartesian-grid line { stroke: #E6EAF0; }
+
+@media print {
+  body { background: #fff; color: #000; }
+}

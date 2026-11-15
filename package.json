@@ -1,0 +1,38 @@
+{
+  "name": "evexia",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Evexia: Astronaut Health Monitoring Console (NASA Space Apps Challenge 2026)",
+  "license": "MIT",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c cyan,magenta \"npm:dev -w server\" \"npm:dev -w client\"",
+    "seed": "npm run seed -w server",
+    "build": "npm run build -w client",
+    "preview": "npm run preview -w client",
+    "start": "npm run start -w server",
+    "lint": "npm run lint -w client",
+    "test": "npm run test:unit && npm run test:api",
+    "test:unit": "npm run test -w client",
+    "test:api": "npm run test -w server",
+    "pretest:e2e": "npm run build",
+    "test:e2e": "playwright test",
+    "test:all": "npm run test && npm run test:e2e",
+    "data:nasa": "npm run data:nasa -w server",
+    "telemetry:sim": "npm run telemetry:sim -w server --"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
+    "@dicebear/collection": "^9.4.2",
+    "@dicebear/core": "^9.4.3",
+    "@playwright/test": "^1.49.0",
+    "concurrently": "^9.1.0"
+  }
+}

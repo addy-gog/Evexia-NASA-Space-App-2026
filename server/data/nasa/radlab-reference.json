@@ -1,0 +1,47 @@
+{
+ "source": "NASA OSDR RadLab",
+ "retrieved": "2026-11-14T17:10:43.460Z",
+ "units": "absorbed dose rate (µGy/h); mGy/day derived",
+ "references": [
+  {
+   "id": "iss-DosTel1",
+   "label": "ISS (DosTel, Columbus module)",
+   "instrument": "DosTel1",
+   "date": "2024-05-15",
+   "meanUGyPerHour": 22.53,
+   "mGyPerDay": 0.541,
+   "n": 1072,
+   "sourceUrl": "https://visualization.osdr.nasa.gov/radlab/api/?spacecraft=ISS&timestamp>=2024-05-15T00:00&timestamp<2024-05-16T00:00&absorbed_dose_rate&format=json"
+  },
+  {
+   "id": "iss-DosTel2",
+   "label": "ISS (DosTel, Columbus module)",
+   "instrument": "DosTel2",
+   "date": "2024-05-15",
+   "meanUGyPerHour": 17.72,
+   "mGyPerDay": 0.425,
+   "n": 1036,
+   "sourceUrl": "https://visualization.osdr.nasa.gov/radlab/api/?spacecraft=ISS&timestamp>=2024-05-15T00:00&timestamp<2024-05-16T00:00&absorbed_dose_rate&format=json"
+  },
+  {
+   "id": "lunar-orbit-CRaTER-D1D2",
+   "label": "Lunar orbit (LRO CRaTER)",
+   "instrument": "CRaTER-D1D2",
+   "date": "2012-03-01",
+   "meanUGyPerHour": 8.33,
+   "mGyPerDay": 0.2,
+   "n": 24,
+   "sourceUrl": "https://visualization.osdr.nasa.gov/radlab/api/?trajectory=BLEO&timestamp>=2012-03-01T00:00&timestamp<2012-03-02T00:00&absorbed_dose_rate&format=json"
+  },
+  {
+   "id": "mars-surface-MSL-RAD",
+   "label": "Mars surface (Curiosity RAD), quiet days 14–19 May 2024",
+   "instrument": "MSL-RAD-Surface",
+   "date": "2024-05-14/2024-05-19",
+   "meanUGyPerHour": 4.21,
+   "mGyPerDay": 0.101,
+   "n": 496,
+   "sourceUrl": "https://visualization.osdr.nasa.gov/radlab/api/?celestial_body=Mars&timestamp>=2024-05-14T00:00&timestamp<2024-05-27T00:00&absorbed_dose_rate&format=json"
+  }
+ ]
+}

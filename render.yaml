@@ -1,0 +1,19 @@
+# Render Blueprint: one web service runs the API and serves the built client.
+services:
+  - type: web
+    name: evexia
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: npm ci --include=dev && npm run build && npm run seed
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.12.0
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5-5
+      - key: CORS_ORIGIN
+        sync: false
