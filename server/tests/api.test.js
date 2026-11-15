@@ -318,10 +318,64 @@ describe('assistant', () => {
     expect(JSON.stringify(res.body)).not.toMatch(/secret-key/);
     const params = create.mock.calls[0][0];
     expect(params.max_tokens).toBe(500);
-    expect(params.system).toMatch(/Never diagnose/);
+    // Rules first, then the knowledge pack carrying the cache breakpoint.
+    expect(params.system[0].text).toMatch(/Never diagnose/);
+    expect(params.system[1].text).toMatch(/<evexia_knowledge>/);
+    expect(params.system[1].text).toMatch(/600 mSv/);
+    expect(params.system[1].text).toMatch(/Glucose: lab normal 65–99/);
+    expect(params.system[1].cache_control).toEqual({ type: 'ephemeral' });
+    expect(params.tools.map((t) => t.name)).toEqual(['get_radiation_reference', 'get_inspiration4_lab_data', 'get_my_recent_readings']);
     expect(params.messages[0].content).toMatch(/Fasting blood glucose: 130 mg\/dL, RED/);
     expect(params.messages[0].content).toMatch(/0.48 mGy\/day measured ≈ 1.824 mSv\/day estimated/);
     expect(params.messages[0].content).toMatch(/self-care first/);
+  });
+  it('tool loop: Claude looks up real NASA data, then answers; results go back in one user turn', async () => {
+    const create = vi
+      .fn()
+      .mockResolvedValueOnce({
+        stop_reason: 'tool_use',
+        content: [
+          { type: 'thinking', thinking: '', signature: 'sig' },
+          { type: 'tool_use', id: 't1', name: 'get_radiation_reference', input: { environment: 'marsTransit' } },
+          { type: 'tool_use', id: 't2', name: 'get_inspiration4_lab_data', input: { test: 'glucose' } },
+        ],
+      })
+      .mockResolvedValueOnce({ model: 'claude-sonnet-5-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'Within the measured range [NASA RadLab].' }] });
+    const a = createApp({ repo, assistantConfig: { ...offlineConfig, apiKey: 'k' }, assistantDeps: { client: { beta: { messages: { create } } } }, rateLimitMax: 1000 });
+    const res = await (await signIn(a, 'okafor')).post('/api/assistant').send({ question: 'Is my radiation normal?', context });
+    expect(res.body).toMatchObject({ mode: 'ai', answer: 'Within the measured range [NASA RadLab].', toolsUsed: ['get_radiation_reference', 'get_inspiration4_lab_data'] });
+    const second = create.mock.calls[1][0].messages;
+    expect(second).toHaveLength(3);
+    expect(second[1].content[0]).toMatchObject({ type: 'thinking' }); // assistant turn passed back unchanged
+    const results = second[2].content;
+    expect(results.map((r) => r.tool_use_id)).toEqual(['t1', 't2']);
+    expect(results[0].content).toMatch(/Liulin-MO on ExoMars TGO/);
+    expect(results[0].content).toMatch(/V1 4030/);
+    expect(JSON.parse(results[1].content).labNormalRanges).toEqual(['65–99']);
+  });
+  it('readings tool returns only the signed-in astronaut\'s own logs; surgeons get none', async () => {
+    const ask = (input) =>
+      vi
+        .fn()
+        .mockResolvedValueOnce({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'r1', name: 'get_my_recent_readings', input }] })
+        .mockResolvedValueOnce({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }] });
+    const create = ask({ days: 7 });
+    const a = createApp({ repo, assistantConfig: { ...offlineConfig, apiKey: 'k' }, assistantDeps: { client: { beta: { messages: { create } } } }, rateLimitMax: 1000 });
+    await (await signIn(a, 'okafor')).post('/api/assistant').send({ question: 'Has my sleep been falling?', context });
+    const own = JSON.parse(create.mock.calls[1][0].messages[2].content[0].content);
+    expect(own.count).toBeGreaterThan(0);
+    expect(own.readings.length).toBe(own.count);
+    const surgeonCreate = ask({ days: 7 });
+    const b = createApp({ repo, assistantConfig: { ...offlineConfig, apiKey: 'k' }, assistantDeps: { client: { beta: { messages: { create: surgeonCreate } } } }, rateLimitMax: 1000 });
+    await (await signIn(b, 'surgeon')).post('/api/assistant').send({ question: 'sleep?', context });
+    expect(JSON.parse(surgeonCreate.mock.calls[1][0].messages[2].content[0].content).error).toMatch(/No crew member/);
+  });
+  it('tool loop stops after 3 rounds and falls back instead of looping', async () => {
+    const create = vi.fn().mockResolvedValue({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'x', name: 'get_radiation_reference', input: { environment: 'station' } }] });
+    const a = createApp({ repo, assistantConfig: { ...offlineConfig, apiKey: 'k' }, assistantDeps: { client: { beta: { messages: { create } } } }, rateLimitMax: 1000 });
+    const res = await (await signIn(a, 'okafor')).post('/api/assistant').send({ question: 'radiation?', context });
+    expect(create).toHaveBeenCalledTimes(4);
+    expect(res.body).toMatchObject({ mode: 'offline', reason: 'too_many_tool_calls' });
   });
   it('refusal → offline fallback; rate limit → 429', async () => {
     const client = { beta: { messages: { create: vi.fn().mockResolvedValue({ stop_reason: 'refusal', content: [] }) } } };

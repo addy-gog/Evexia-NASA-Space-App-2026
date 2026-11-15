@@ -385,7 +385,9 @@ export function createApp({
     if (typeof question !== 'string' || !question.trim()) return badRequest(res, { question: 'question is required.' });
     if (question.length > 1000) return badRequest(res, { question: 'question must be 1000 characters or fewer.' });
     try {
-      return res.json(await answerQuestion({ question: question.trim(), context }, assistantConfig, assistantDeps));
+      // Only an astronaut's own record is offered to the readings tool; other roles get no personal data.
+      const crewId = req.user?.role === 'astronaut' ? req.user.crewId : null;
+      return res.json(await answerQuestion({ question: question.trim(), context, crewId }, assistantConfig, { repo, ...assistantDeps }));
     } catch (err) {
       console.error('[assistant] unexpected error', err);
       return res.status(500).json({ error: 'assistant_failed' });

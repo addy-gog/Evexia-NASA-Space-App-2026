@@ -9,6 +9,80 @@ import { ruleBasedAnswer } from '../../client/src/lib/ruleAssistant.js';
 import { evaluateReading } from '../../client/src/lib/severity.js';
 import { ENVIRONMENTS, INDICATORS } from '../../client/src/config/thresholds.js';
 import { formatDelay, selfCareFirst } from '../../client/src/lib/comms.js';
+import { getKnowledgePack, getLabData, getRadiationReference, LAB_TESTS, RADIATION_REFERENCE } from './knowledge.js';
+
+/** At most this many tool round trips per question, so a question can never loop or run up cost. */
+const MAX_TOOL_ROUNDS = 3;
+const HISTORY_FIELDS = ['hr', 'sys', 'dia', 'glucose', 'temp', 'sleep', 'radiation'];
+
+/** Read-only tools Claude may call. Kept in a fixed order so the cached prompt prefix stays identical. */
+export const TOOLS = [
+  {
+    name: 'get_radiation_reference',
+    description:
+      'Measured radiation (absorbed dose, mGy/day, from NASA RadLab) and published effective dose (mSv/day) for one mission environment, with the NASA radiation limits and a real solar-event example. Use when the astronaut asks whether their radiation is normal for where they are.',
+    strict: true,
+    input_schema: {
+      type: 'object',
+      properties: { environment: { type: 'string', enum: Object.keys(RADIATION_REFERENCE) } },
+      required: ['environment'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'get_inspiration4_lab_data',
+    description:
+      'Real blood test values for the four SpaceX Inspiration4 crew (NASA OSDR OSD-575 and OSD-569), before and after their 3-day flight, with the lab normal range for each sample. Use to compare a reading with real astronaut data.',
+    strict: true,
+    input_schema: {
+      type: 'object',
+      properties: { test: { type: 'string', enum: Object.keys(LAB_TESTS) } },
+      required: ['test'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'get_my_recent_readings',
+    description:
+      "This astronaut's own logged readings for the last few days, newest first, with time, values and notes. Use for questions about trends, such as whether sleep has been falling.",
+    strict: true,
+    input_schema: {
+      type: 'object',
+      properties: { days: { type: 'integer', description: 'How many days back to look, 1 to 14.' } },
+      required: ['days'],
+      additionalProperties: false,
+    },
+  },
+];
+
+/** Run one tool call. Never throws: errors come back as text Claude can read. */
+export function runTool(name, input, { crewId, repo } = {}) {
+  try {
+    if (name === 'get_radiation_reference') return getRadiationReference(String(input?.environment));
+    if (name === 'get_inspiration4_lab_data') return getLabData(String(input?.test));
+    if (name === 'get_my_recent_readings') {
+      if (!crewId || !repo) return { error: 'No crew member is signed in, so personal readings are not available.' };
+      const days = Math.max(1, Math.min(14, Math.round(Number(input?.days) || 7)));
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      const rows = repo.readingsSince(crewId, since).slice(-40).reverse();
+      return {
+        days,
+        count: rows.length,
+        readings: rows.map((r) => {
+          const out = { ts: r.ts };
+          for (const f of HISTORY_FIELDS) if (r[f] != null) out[f] = r[f];
+          if (r.environment) out.environment = r.environment;
+          if (r.notes) out.notes = String(r.notes).slice(0, 200);
+          return out;
+        }),
+        units: 'hr bpm; sys/dia mmHg; glucose mg/dL; temp °C; sleep hours; radiation mGy/day absorbed',
+      };
+    }
+    return { error: `Unknown tool ${name}.` };
+  } catch (err) {
+    return { error: `Tool failed: ${err.message}` };
+  }
+}
 
 export const DEFAULT_MODEL = 'claude-sonnet-5-5';
 // Models that accept the server-side refusal fallback (`fallbacks: "default"`).
@@ -24,6 +98,7 @@ Rules you must always follow:
 - Respect the Earth communication delay given in the context. If the one-way delay is more than 5 minutes, put self-care steps FIRST and remind them not to wait for a reply from Earth before acting. If the delay is short, recommend escalating amber findings early as well.
 - Link findings to the relevant spaceflight hazard (radiation, isolation and confinement, distance from Earth, gravity fields, hostile closed environments) when useful.
 - If symptoms sound like an emergency (chest pain, fainting, confusion, trouble breathing), tell them to alert the crew immediately.
+- Base facts on the <evexia_knowledge> pack and on tool results, and name the source in brackets when you use one, for example [NASA-STD-3001] or [NASA OSDR]. If neither covers the question, say so.
 - Keep answers short: at most about 180 words, using short paragraphs or bullet points. Do not invent numbers or citations.`;
 
 export function getAssistantConfig(env = process.env) {
@@ -88,11 +163,23 @@ function offline(question, ctx, reason) {
 }
 
 /**
- * @param {{question: string, context: object}} input
- * @param {object} config  from getAssistantConfig()
- * @param {object} [deps]  { client } for tests
+ * The system prompt as two blocks: the rules, then the knowledge pack. The cache
+ * breakpoint sits on the pack, so tools + rules + pack are cached together and
+ * later questions re-read them at the cache price.
  */
-export async function answerQuestion({ question, context }, config, deps = {}) {
+export function systemBlocks() {
+  return [
+    { type: 'text', text: SYSTEM_PROMPT },
+    { type: 'text', text: getKnowledgePack(), cache_control: { type: 'ephemeral' } },
+  ];
+}
+
+/**
+ * @param {{question: string, context: object, crewId?: string}} input
+ * @param {object} config  from getAssistantConfig()
+ * @param {object} [deps]  { client } for tests, { repo } for the readings tool
+ */
+export async function answerQuestion({ question, context, crewId }, config, deps = {}) {
   const ctx = normaliseContext(context);
   if (!config.apiKey && !deps.client) return offline(question, ctx, 'no_api_key');
 
@@ -100,24 +187,42 @@ export async function answerQuestion({ question, context }, config, deps = {}) {
     deps.client ??
     new Anthropic({ apiKey: config.apiKey, baseURL: config.baseURL, timeout: config.timeoutMs, maxRetries: 1 });
 
-  const params = {
+  const messages = [
+    {
+      role: 'user',
+      content: `<context>\n${contextText(ctx)}\n</context>\n\nAstronaut question: ${question}`,
+    },
+  ];
+  const base = {
     model: config.model,
     max_tokens: config.maxTokens,
-    system: SYSTEM_PROMPT,
+    system: systemBlocks(),
+    tools: TOOLS,
     output_config: { effort: 'low' },
-    messages: [
-      {
-        role: 'user',
-        content: `<context>\n${contextText(ctx)}\n</context>\n\nAstronaut question: ${question}`,
-      },
-    ],
   };
+  const toolsUsed = [];
 
   try {
     const useFallbacks = FALLBACK_MODELS.has(config.model);
-    const response = useFallbacks
-      ? await client.beta.messages.create({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
-      : await client.messages.create(params);
+    const send = (msgs) =>
+      useFallbacks
+        ? client.beta.messages.create({ ...base, messages: msgs, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
+        : client.messages.create({ ...base, messages: msgs });
+
+    let response = await send(messages);
+    for (let round = 0; response.stop_reason === 'tool_use' && round < MAX_TOOL_ROUNDS; round += 1) {
+      const calls = response.content.filter((b) => b.type === 'tool_use');
+      // Append the whole assistant turn unchanged (thinking blocks included), then all results in one user turn.
+      messages.push({ role: 'assistant', content: response.content });
+      messages.push({
+        role: 'user',
+        content: calls.map((c) => {
+          toolsUsed.push(c.name);
+          return { type: 'tool_result', tool_use_id: c.id, content: JSON.stringify(runTool(c.name, c.input, { crewId, repo: deps.repo })) };
+        }),
+      });
+      response = await send(messages);
+    }
 
     if (response.stop_reason === 'refusal') return offline(question, ctx, 'refusal');
     const text = response.content
@@ -125,8 +230,8 @@ export async function answerQuestion({ question, context }, config, deps = {}) {
       .map((b) => b.text)
       .join('\n')
       .trim();
-    if (!text) return offline(question, ctx, 'empty_response');
-    return { mode: 'ai', model: response.model ?? config.model, answer: text, truncated: response.stop_reason === 'max_tokens' };
+    if (!text) return offline(question, ctx, response.stop_reason === 'tool_use' ? 'too_many_tool_calls' : 'empty_response');
+    return { mode: 'ai', model: response.model ?? config.model, answer: text, toolsUsed, truncated: response.stop_reason === 'max_tokens' };
   } catch (err) {
     let reason = 'upstream_error';
     if (err instanceof Anthropic.AuthenticationError) reason = 'auth_error';
