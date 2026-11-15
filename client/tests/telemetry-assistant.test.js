@@ -55,7 +55,7 @@ describe('telemetry → log sync', () => {
   it('validates gateway payloads', () => {
     expect(validateTelemetryPayload({ crewId: 'c1', deviceId: 'w', samples: [{ metric: 'hr', value: 70 }] })).toEqual([]);
     expect(validateTelemetryPayload({})).toHaveLength(3);
-    const e = validateTelemetryPayload({ crewId: 'c1', deviceId: 'w', samples: [{ metric: 'spo2', value: 'x', ts: 'nope' }] });
+    const e = validateTelemetryPayload({ crewId: 'c1', deviceId: 'w', samples: [{ metric: 'co2', value: 'x', ts: 'nope' }] }); // co2 is not a body metric
     expect(e.join(' ')).toMatch(/metric must be one of/);
     expect(e.join(' ')).toMatch(/value must be a number/);
     expect(e.join(' ')).toMatch(/ISO date/);
@@ -75,15 +75,35 @@ describe('rule-based assistant (offline fallback)', () => {
   it('chip intents: what first, why the delay matters, draft a report', () => {
     const results = evaluateReading({ hr: 96, glucose: 130, sleep: 7.5 });
     const ctx = { results, delaySeconds: 720, environmentLabel: 'Mars transit', score: 59, tier: 'Act now', missionDay: 61, crewName: 'Cdr. Ada Okafor' };
-    expect(ruleBasedAnswer('What should I do first?', ctx)).toMatch(/^Start with glucose \(critical\)/);
+    expect(ruleBasedAnswer('What should I do first?', ctx)).toMatch(/^IITT Red \(Emergent\): needs care immediately\. Start with glucose \(critical\)/);
     expect(ruleBasedAnswer('What should I do first?', ctx)).toMatch(/escalate to the flight surgeon now/);
     expect(ruleBasedAnswer('Why does the delay matter?', ctx)).toMatch(/about 12 min each way.*Autonomy mode/s);
     expect(ruleBasedAnswer('Why does the delay matter?', { ...ctx, delaySeconds: 0 })).toMatch(/near real time/);
     const report = ruleBasedAnswer('Draft a report', ctx);
     expect(report).toMatch(/Cdr. Ada Okafor · Mission day 61 · Mars transit/);
     expect(report).toContain('Fasting blood glucose: 130 mg/dL · CRITICAL');
-    expect(summaryMessage(ctx)).toMatch(/^Score 59 · Act now\. Glucose \(critical\), Heart rate \(caution\) need attention/);
+    expect(summaryMessage(ctx)).toMatch(/^Score 59 · Act now\. IITT Red \(Emergent\): needs care immediately\. Glucose \(critical\), Heart rate \(caution\) need attention/);
     expect(summaryMessage({ results: {} })).toMatch(/No current readings/);
+  });
+  it('explains the score, IITT tier, ABCDE order and the cap', () => {
+    // Everything else optimal, so the weighted score sits above the circulation red cap and the cap applies.
+    const results = evaluateReading({ hr: 128, temp: 38.6, sys: 112, dia: 72, glucose: 82, sleep: 8, radiation: 0 });
+    for (const q of ['Explain my score', 'Why is my score capped?', 'What is my triage?', 'How does the ABCDE queue work?']) {
+      const a = ruleBasedAnswer(q, { results });
+      expect(a).toMatch(/IITT Red \(Emergent\), target immediate/);
+      expect(a).toMatch(/1\. Heart rate \(critical\): ABCDE C, circulation\n2\. Temperature \(critical\): ABCDE E/);
+      expect(a).toMatch(/Capped at 45%: circulation \(ABCDE C\) is red, emergent\./);
+      expect(a).toMatch(/7 points are taken off/);
+      expect(a).toMatch(/not a diagnosis/);
+    }
+    expect(ruleBasedAnswer('Explain my score', { results: evaluateReading({ hr: 70, sleep: 8 }) })).toMatch(/Nothing is flagged, so there is no cap/);
+    expect(ruleBasedAnswer('Explain my score', { results: {} })).toMatch(/No current readings yet/);
+  });
+  it('orders flags by IITT colour, then ABCDE: red sleep before amber heart rate', () => {
+    const results = evaluateReading({ hr: 95, sleep: 4 });
+    expect(ruleBasedAnswer('What should I do first?', { results })).toMatch(/^IITT Red \(Emergent\): needs care immediately\. Start with sleep/);
+    // Same colour: circulation (C) before exposure (E).
+    expect(ruleBasedAnswer('What should I do first?', { results: evaluateReading({ temp: 37.6, hr: 95 }) })).toMatch(/^IITT Yellow \(Urgent\): needs care within 60 minutes\. Start with heart rate/);
   });
   it('red → escalation; self-care first only with a long delay', () => {
     const results = evaluateReading({ glucose: 130 });

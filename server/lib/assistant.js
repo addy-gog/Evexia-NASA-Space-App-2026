@@ -8,13 +8,14 @@ import Anthropic from '@anthropic-ai/sdk';
 import { ruleBasedAnswer } from '../../client/src/lib/ruleAssistant.js';
 import { evaluateReading, validateReading } from '../../client/src/lib/severity.js';
 import { screenDangerSigns } from '../../client/src/lib/safety.js';
-import { ENVIRONMENTS, INDICATORS } from '../../client/src/config/thresholds.js';
+import { ENVIRONMENTS, INDICATORS, TRIAGE } from '../../client/src/config/thresholds.js';
+import { computeScore } from '../../client/src/lib/score.js';
 import { formatDelay, selfCareFirst } from '../../client/src/lib/comms.js';
 import { getKnowledgePack, getLabData, getRadiationReference, LAB_TESTS, RADIATION_REFERENCE } from './knowledge.js';
 
 /** At most this many tool round trips per question, so a question can never loop or run up cost. */
 const MAX_TOOL_ROUNDS = 4;
-const HISTORY_FIELDS = ['hr', 'sys', 'dia', 'glucose', 'temp', 'sleep', 'radiation'];
+const HISTORY_FIELDS = ['spo2', 'hr', 'sys', 'dia', 'glucose', 'temp', 'sleep', 'radiation'];
 
 /** Read-only tools Claude may call. Kept in a fixed order so the cached prompt prefix stays identical. */
 export const TOOLS = [
@@ -63,6 +64,7 @@ export const TOOLS = [
       type: 'object',
       properties: {
         device: { type: 'string', enum: ['blood_pressure_monitor', 'thermometer', 'glucose_meter', 'pulse_oximeter', 'other'] },
+        spo2: { type: ['number', 'null'], description: 'Blood oxygen saturation (SpO2), percent, from a pulse oximeter.' },
         hr: { type: ['number', 'null'], description: 'Pulse or heart rate, beats per minute.' },
         sys: { type: ['number', 'null'], description: 'Systolic (top) blood pressure, mmHg.' },
         dia: { type: ['number', 'null'], description: 'Diastolic (bottom) blood pressure, mmHg.' },
@@ -72,7 +74,7 @@ export const TOOLS = [
         temp_unit: { type: 'string', enum: ['C', 'F', 'none'] },
         unreadable: { type: 'string', description: 'What you could not read, or an empty string.' },
       },
-      required: ['device', 'hr', 'sys', 'dia', 'glucose', 'glucose_unit', 'temp', 'temp_unit', 'unreadable'],
+      required: ['device', 'spo2', 'hr', 'sys', 'dia', 'glucose', 'glucose_unit', 'temp', 'temp_unit', 'unreadable'],
       additionalProperties: false,
     },
   },
@@ -132,7 +134,7 @@ const round1 = (v) => Math.round(v * 10) / 10;
 /** Turn a propose_readings call into checked values. Unit conversion happens here, not in the model. */
 export function readingsFromProposal(input = {}) {
   const raw = {};
-  for (const f of ['hr', 'sys', 'dia']) if (Number.isFinite(input[f])) raw[f] = Math.round(input[f]);
+  for (const f of ['spo2', 'hr', 'sys', 'dia']) if (Number.isFinite(input[f])) raw[f] = Math.round(input[f]);
   if (Number.isFinite(input.glucose)) raw.glucose = Math.round(input.glucose_unit === 'mmol/L' ? input.glucose * 18.016 : input.glucose);
   if (Number.isFinite(input.temp)) raw.temp = round1(input.temp_unit === 'F' ? ((input.temp - 32) * 5) / 9 : input.temp);
   const errors = validateReading(raw);
@@ -213,7 +215,7 @@ export function runTool(name, input, { crewId, repo, actions } = {}) {
           if (r.notes) out.notes = String(r.notes).slice(0, 200);
           return out;
         }),
-        units: 'hr bpm; sys/dia mmHg; glucose mg/dL; temp °C; sleep hours; radiation mGy/day absorbed',
+        units: 'spo2 %; hr bpm; sys/dia mmHg; glucose mg/dL; temp °C; sleep hours; radiation mGy/day absorbed',
       };
     }
     return { error: `Unknown tool ${name}.` };
@@ -234,6 +236,7 @@ Rules you must always follow:
 - Give practical self-care steps the astronaut can do with on-board resources.
 - For ANY red reading, always tell the astronaut to escalate to the flight surgeon using the Escalate button, and to tell the crew medical officer.
 - Respect the Earth communication delay given in the context. If the one-way delay is more than 5 minutes, put self-care steps FIRST and remind them not to wait for a reply from Earth before acting. If the delay is short, recommend escalating amber findings early as well.
+- When more than one reading is flagged, deal with them in the "Triage order" given in the context (IITT colour first, then ABCDE), and say how soon the top one needs care (the tier's target time). If asked about the score or the queue, explain it from the Triage lines and the knowledge pack.
 - Link findings to the relevant spaceflight hazard (radiation, isolation and confinement, distance from Earth, gravity fields, hostile closed environments) when useful.
 - If symptoms sound like an emergency (chest pain, fainting, confusion, trouble breathing), tell them to alert the crew immediately.
 - Base facts on the <evexia_knowledge> pack and on tool results, and name the source in brackets when you use one, for example [NASA-STD-3001] or [NASA OSDR]. If neither covers the question, say so.
@@ -266,7 +269,7 @@ export function normaliseContext(raw = {}) {
   const environment = ENVIRONMENTS[raw.environment] ? raw.environment : 'station';
   const delaySeconds = Number.isFinite(Number(raw.delaySeconds)) ? Math.max(0, Math.min(3600, Number(raw.delaySeconds))) : 0;
   const reading = {};
-  for (const f of ['hr', 'sys', 'dia', 'glucose', 'temp', 'sleep', 'radiation']) {
+  for (const f of ['spo2', 'hr', 'sys', 'dia', 'glucose', 'temp', 'sleep', 'radiation']) {
     const v = Number(raw.reading?.[f]);
     if (Number.isFinite(v)) reading[f] = v;
   }
@@ -292,12 +295,35 @@ function contextText(ctx) {
     `Earth link one-way delay: ${formatDelay(ctx.delaySeconds)}${selfCareFirst(ctx.delaySeconds) ? ' (long delay: self-care first)' : ''}.`,
   ];
   if (ctx.missionDay) lines.push(`Mission day: ${ctx.missionDay}.`);
+  lines.push(...triageLines(ctx.results));
   lines.push('Current readings and status:');
   for (const m of INDICATORS) {
     const r = ctx.results[m.id];
     if (r) lines.push(`- ${m.label}: ${r.value} ${m.unit}, ${r.severity.toUpperCase()}. ${r.reason}`);
   }
   return lines.join('\n');
+}
+
+/** Evexia's own triage of these readings (lib/triage.js), so Claude explains it instead of recomputing it. */
+export function triageLines(results) {
+  const s = computeScore(results);
+  if (s.score == null) return ['Triage: no current readings.'];
+  const t = s.triage;
+  const tier = TRIAGE.tiers[t.tier];
+  const out = [`Triage: IITT ${tier.colour} (${tier.label}), target ${tier.target.toLowerCase()}. Health score ${s.score}% (${s.band.label}).`];
+  if (t.flags.length) {
+    const order = t.flags.map((f) => `${INDICATORS.find((m) => m.id === f.id).short.toLowerCase()} (${f.severity}, ABCDE ${f.rank.letter} ${f.rank.label.toLowerCase()})`);
+    out.push(`Triage order, most urgent first: ${order.join('; ')}.`);
+  }
+  if (s.capReason) out.push(`Triage: ${s.capReason}`);
+  if (t.flags.length > 1) {
+    out.push(
+      s.penalty
+        ? `Triage: ${s.penalty} points taken off because several readings of the same colour are flagged together.`
+        : 'Triage: no multi-flag penalty (penalties apply only to a second or later flag of the same colour).',
+    );
+  }
+  return out;
 }
 
 export const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];

@@ -86,7 +86,20 @@ export function correlateHazards(results = {}, ctx = {}) {
     );
   }
 
-  // 5. Hostile closed environment: fever, or glucose + sleep (metabolic stress).
+  // 5. Hostile closed environment: low blood oxygen (cabin air), fever, or glucose + sleep (metabolic stress).
+  if (bad(results.spo2)) {
+    const withFever = bad(results.temp) && results.temp.value > 37;
+    push(
+      'cabin-air',
+      'hostileEnvironment',
+      results.spo2.severity,
+      withFever ? 'Hostile closed environment: low oxygen with a fever' : 'Hostile closed environment: low blood oxygen, check the cabin air',
+      withFever
+        ? 'Low blood oxygen with a raised temperature can mean a chest infection. Breathing comes first: sit upright, tell your crew medical officer and keep re-measuring.'
+        : 'Low blood oxygen in a sealed cabin can come from the air system (low oxygen or high carbon dioxide). Check the cabin air readings with your crew, then re-measure.',
+      withFever ? ['spo2', 'temp'] : ['spo2'],
+    );
+  }
   if (bad(results.temp) && results.temp.value > 37) {
     push(
       'infection-risk',

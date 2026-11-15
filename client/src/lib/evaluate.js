@@ -67,7 +67,7 @@ export function currentSnapshot(logs, now = Date.now()) {
   for (const l of sortLogs(logs)) {
     if (tsOf(l) > nowMs) continue;
     const meta = { ts: l.ts, logId: l.id, source: l.source, device: l.device, environment: l.environment, stale: nowMs - tsOf(l) > staleMs };
-    for (const f of ['hr', 'glucose', 'temp', 'sleep']) if (isNum(l[f])) snap[f] = { value: l[f], ...meta };
+    for (const f of ['spo2', 'hr', 'glucose', 'temp', 'sleep']) if (isNum(l[f])) snap[f] = { value: l[f], ...meta };
     if (isNum(l.sys) && isNum(l.dia)) snap.bp = { value: `${l.sys}/${l.dia}`, sys: l.sys, dia: l.dia, ...meta };
     if (isNum(l.radiation)) snap.radiation = { value: l.radiation, spe: Boolean(l.spe), ...meta };
   }
@@ -139,7 +139,7 @@ export function evaluateCurrent(logs = [], ctx = {}, now = Date.now()) {
   const reading = {};
   if (fresh('hr')) reading.hr = snapshot.hr.value;
   if (fresh('bp')) Object.assign(reading, { sys: snapshot.bp.sys, dia: snapshot.bp.dia });
-  for (const f of ['glucose', 'temp', 'sleep']) if (fresh(f)) reading[f] = snapshot[f].value;
+  for (const f of ['spo2', 'glucose', 'temp', 'sleep']) if (fresh(f)) reading[f] = snapshot[f].value;
 
   const results = evaluateReading(reading, {
     environment: ctx.environment,
@@ -206,7 +206,7 @@ export function weeklySummary(logs, ctx) {
     monday.setHours(0, 0, 0, 0);
     monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
     const k = dayKey(monday);
-    if (!weeks.has(k)) weeks.set(k, { weekOf: k, logs: 0, amber: 0, red: 0, vals: { hr: [], sys: [], dia: [], glucose: [], temp: [], sleep: [], radiation: [] } });
+    if (!weeks.has(k)) weeks.set(k, { weekOf: k, logs: 0, amber: 0, red: 0, vals: { spo2: [], hr: [], sys: [], dia: [], glucose: [], temp: [], sleep: [], radiation: [] } });
     const w = weeks.get(k);
     w.logs += 1;
     for (const f of Object.keys(w.vals)) if (isNum(l[f])) w.vals[f].push(l[f]);
@@ -224,6 +224,7 @@ export function weeklySummary(logs, ctx) {
       logs: w.logs,
       amber: w.amber,
       red: w.red,
+      spo2: avg(w.vals.spo2),
       hr: avg(w.vals.hr),
       sys: avg(w.vals.sys),
       dia: avg(w.vals.dia),

@@ -8,18 +8,9 @@ import { StatusBadge } from '../components/Status.jsx';
 import GuideCard from '../components/GuideCard.jsx';
 import LogTable from '../components/LogTable.jsx';
 import { GUIDE } from '../content/guide.js';
+import { FIELDS } from '../config/fields.js'; // shared with the Console cards
 import { toDateInput, toTimeInput, formatDateTime, relativeTime, formatIndicatorValue } from '../lib/format.js';
 
-/** Field definitions: slider ranges are practical; typed values may go wider (validated). */
-const FIELDS = [
-  { key: 'hr', indicator: 'hr', label: 'Resting heart rate', unit: 'bpm', slider: [30, 150], step: 1 },
-  { key: 'sys', indicator: 'bp', label: 'Blood pressure: systolic (top number)', unit: 'mmHg', slider: [70, 200], step: 1 },
-  { key: 'dia', indicator: 'bp', label: 'Blood pressure: diastolic (bottom number)', unit: 'mmHg', slider: [40, 130], step: 1 },
-  { key: 'glucose', indicator: 'glucose', label: 'Fasting blood glucose', unit: 'mg/dL', slider: [40, 250], step: 1 },
-  { key: 'temp', indicator: 'temp', label: 'Body temperature', unit: '°C', slider: [34, 41], step: 0.1 },
-  { key: 'sleep', indicator: 'sleep', label: 'Sleep last night', unit: 'hours', slider: [0, 12], step: 0.1 },
-  { key: 'radiation', indicator: 'radiation', label: 'Dosimeter: absorbed dose, last 24 h', unit: 'mGy/day', slider: [0, 5], step: 0.01 },
-];
 
 const parse = (s) => (s === '' || s === null ? undefined : Number(s));
 

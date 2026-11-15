@@ -1,5 +1,5 @@
 /**
- * 2D SVG body: the non-3D fallback (no WebGL, or "Simple view"). Same six
+ * 2D SVG body: the non-3D fallback (only when the browser cannot run WebGL). Same seven
  * hotspots as the 3D body, each a real button with icon + word + colour.
  */
 import { SEVERITY_META, GRADE_OF } from './Status.jsx';

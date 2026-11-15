@@ -12,7 +12,7 @@ export function formatIndicatorValue(id, reading) {
     case 'radiation':
       return reading.radiation != null ? formatDose(reading.radiation) : '—';
     default:
-      return reading[id] != null ? String(reading[id]) : '—';
+      return reading[id] != null && !Number.isNaN(reading[id]) ? String(reading[id]) : '—';
   }
 }
 
@@ -23,12 +23,13 @@ export function formatDose(mGy) {
 
 export function regionLabel(id, reading, severity) {
   const m = INDICATORS.find((i) => i.id === id);
-  const names = { hr: 'Heart', bp: 'Vessels', glucose: 'Pancreas', temp: 'Thermal', sleep: 'Brain', radiation: 'Radiation' };
+  const names = { spo2: 'Lungs', hr: 'Heart', bp: 'Vessels', glucose: 'Pancreas', temp: 'Thermal', sleep: 'Brain', radiation: 'Radiation' };
   const sev = severity ? severity[0].toUpperCase() + severity.slice(1) : '';
   return `${names[id]}: ${formatIndicatorValue(id, reading)} ${m.unit}, ${sev}`;
 }
 
 export const REGION_NAMES = {
+  lungs: 'Chest (lungs)',
   heart: 'Heart (chest)',
   vessels: 'Upper arm and major vessels',
   pancreas: 'Abdomen (pancreas)',

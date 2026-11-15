@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS readings (
   id TEXT PRIMARY KEY,
   crew_id TEXT NOT NULL REFERENCES crew(id),
   ts TEXT NOT NULL,
+  spo2 REAL, -- blood oxygen saturation, %
   hr REAL, sys REAL, dia REAL, glucose REAL, temp REAL, sleep REAL,
   radiation REAL, -- absorbed dose, mGy/day
   spe INTEGER NOT NULL DEFAULT 0,
@@ -122,7 +123,15 @@ export function openDb(file = DEFAULT_DB_PATH) {
   if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
   const { db, driver } = openDriver(file);
   db.exec(SCHEMA);
+  migrate(db);
   return { db, driver };
+}
+
+/** Add columns introduced after a database was created (keeps every existing row). */
+function migrate(db) {
+  const has = (table, col) => db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col);
+  // 16 Nov 2026: blood oxygen (SpO2), ABCDE rank A/B in the triage.
+  if (!has('readings', 'spo2')) db.exec('ALTER TABLE readings ADD COLUMN spo2 REAL;');
 }
 
 /** Normalise rows (node:sqlite returns null-prototype objects). */

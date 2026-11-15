@@ -101,7 +101,7 @@ export function aggregateForSync(samples, windowMs = 15 * 60_000, now = Date.now
   for (const [metric, list] of Object.entries(byMetric)) {
     list.sort((a, b) => new Date(a.ts) - new Date(b.ts));
     counts[metric] = list.length;
-    values[metric] = metric === 'hr' ? Math.round(median(list.map((s) => s.value))) : list[list.length - 1].value;
+    values[metric] = metric === 'hr' || metric === 'spo2' ? Math.round(median(list.map((s) => s.value))) : list[list.length - 1].value;
   }
   if (values.sys !== undefined && values.dia === undefined) delete values.sys;
   if (values.dia !== undefined && values.sys === undefined) delete values.dia;
@@ -111,7 +111,7 @@ export function aggregateForSync(samples, windowMs = 15 * 60_000, now = Date.now
   const to = new Date(Math.max(...times)).toISOString();
   const hhmm = (iso) => new Date(iso).toTimeString().slice(0, 5);
   const parts = Object.entries(counts).map(([m, n]) => `${TELEMETRY_METRICS[m].label} ${n} sample${n > 1 ? 's' : ''}`);
-  const notes = `Synced from wearable telemetry (${devices.join(', ')}), ${hhmm(from)}–${hhmm(to)}: ${parts.join('; ')}.${values.hr !== undefined ? ' Heart rate = median of the window.' : ''}`;
+  const notes = `Synced from wearable telemetry (${devices.join(', ')}), ${hhmm(from)}–${hhmm(to)}: ${parts.join('; ')}.${values.hr !== undefined ? ' Heart rate = median of the window.' : ''}${values.spo2 !== undefined ? ' Blood oxygen = median of the window.' : ''}`;
   return { values, counts, devices, from, to, notes };
 }
 

@@ -49,6 +49,7 @@ export const isInside = (viewId) => viewId !== 'outside';
 
 /** Anatomy parts (Open Anatomy node names) that glow for each reading. */
 export const PARTS_FOR = {
+  spo2: ['lung_l', 'lung_r', 'trachea'],
   hr: ['heart'],
   bp: ['carotid_l', 'carotid_r', 'aorta', 'coronary_arteries'],
   glucose: ['pancreas'],
@@ -59,6 +60,7 @@ export const PARTS_FOR = {
 
 /** What each marker points at, in plain words. */
 export const PART_NAMES = {
+  spo2: 'Lungs',
   hr: 'Heart',
   bp: 'Neck arteries and aorta',
   glucose: 'Pancreas',
@@ -74,15 +76,16 @@ export const PART_NAMES = {
  *   found by the Body page browser test, 15 Nov 2026).
  * - Temperature: the armpit, where it is often taken (on the forehead it sat on the sleep marker).
  * - Radiation: the right thigh bone, a bone-marrow site (the pelvis centre landed on the groin).
+ * - Blood oxygen: upper left lung, above and outside the heart marker (0.14 m clear of every other marker).
  */
 export const MARKERS = {
-  male: { hr: [0.022, 1.328, 0.023], bp: [-0.023, 1.538, 0.005], glucose: [0.007, 1.141, 0.021], temp: [-0.145, 1.36, 0.02], sleep: [0.001, 1.679, -0.022], radiation: [-0.092, 0.72, 0] },
-  female: { hr: [0.024, 1.304, 0.013], bp: [-0.02, 1.533, 0.014], glucose: [0.006, 1.16, 0.013], temp: [-0.145, 1.33, 0.02], sleep: [0, 1.688, -0.01], radiation: [-0.114, 0.72, 0] },
+  male: { spo2: [0.12, 1.43, 0.03], hr: [0.022, 1.328, 0.023], bp: [-0.023, 1.538, 0.005], glucose: [0.007, 1.141, 0.021], temp: [-0.145, 1.36, 0.02], sleep: [0.001, 1.679, -0.022], radiation: [-0.092, 0.72, 0] },
+  female: { spo2: [0.12, 1.41, 0.03], hr: [0.024, 1.304, 0.013], bp: [-0.02, 1.533, 0.014], glucose: [0.006, 1.16, 0.013], temp: [-0.145, 1.33, 0.02], sleep: [0, 1.688, -0.01], radiation: [-0.114, 0.72, 0] },
 };
 /** The part each marker rides with when the Exploded view pulls parts apart. */
-export const MARKER_PART = { hr: 'heart', bp: 'carotid_r', glucose: 'pancreas', temp: 'humerus_r', sleep: 'brain', radiation: 'femur_r' };
+export const MARKER_PART = { spo2: 'lung_l', hr: 'heart', bp: 'carotid_r', glucose: 'pancreas', temp: 'humerus_r', sleep: 'brain', radiation: 'femur_r' };
 /** Which side of its point each label sits on, so neighbouring labels do not collide. */
-export const MARKER_SIDE = { hr: 'right', bp: 'left', glucose: 'right', temp: 'left', sleep: 'right', radiation: 'left' };
+export const MARKER_SIDE = { spo2: 'right', hr: 'right', bp: 'left', glucose: 'right', temp: 'left', sleep: 'right', radiation: 'left' };
 
 /** Minimum gap between marker anchors so 44 px tap areas never overlap (checked by a unit test). */
 export const MIN_MARKER_GAP_M = 0.14;

@@ -22,7 +22,7 @@ export const test = base.extend({
 
 export { expect };
 
-export const INDICATORS = ['hr', 'bp', 'glucose', 'temp', 'sleep', 'radiation'];
+export const INDICATORS = ['spo2', 'hr', 'bp', 'glucose', 'temp', 'sleep', 'radiation'];
 
 export const PASSWORDS = {
   okafor: 'Okafor-2026',
@@ -104,4 +104,4 @@ export async function mockClaude(page) {
   return sent;
 }
 
-export const GREEN ={ hr: 70, sys: 118, dia: 76, glucose: 90, temp: 36.8, sleep: 7.5, radiation: 0.4 };
+export const GREEN ={ spo2: 98, hr: 70, sys: 118, dia: 76, glucose: 90, temp: 36.8, sleep: 7.5, radiation: 0.4 };

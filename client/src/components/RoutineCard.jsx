@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { checkInStreak, dueToday, openRechecks } from '../lib/routine.js';
 import { relativeTime, formatTime, formatDate } from '../lib/format.js';
 import { useHealthStore } from '../store/useHealthStore.js';
+import { INDICATORS } from '../config/thresholds.js';
 
 const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'narrow' });
 
@@ -73,17 +74,17 @@ export default function RoutineCard({ logs, snapshot, now }) {
             ))}
           </ul>
           {rechecks.length > 3 && <p className="mt-1 text-xs text-ink-3">and {rechecks.length - 3} more in History</p>}
-          {rechecks.some((n) => n.due) && <p className="mt-1.5 text-xs text-ink-2">Worse, or no better? Ask Evexia AI to prepare a report for the flight surgeon.</p>}
+          {rechecks.some((n) => n.due) && <p className="mt-1.5 text-xs text-ink-2">Worse, or no better? Ask Evexia SI to prepare a report for the flight surgeon.</p>}
         </div>
       )}
 
       <div className="border-t border-line pt-3" data-testid="due-today">
         {due.length === 0 ? (
-          <p className="text-sm text-ok-fg">All six readings taken today.</p>
+          <p className="text-sm text-ok-fg">All {INDICATORS.length} readings taken today.</p>
         ) : (
           <>
             <p className="text-sm font-semibold">
-              Still to measure today <span className="font-normal text-ink-3">({due.length} of 6)</span>
+              Still to measure today <span className="font-normal text-ink-3">({due.length} of {INDICATORS.length})</span>
             </p>
             <ul className="mt-1.5 flex flex-col">
               {due.slice(0, 4).map((d) => (

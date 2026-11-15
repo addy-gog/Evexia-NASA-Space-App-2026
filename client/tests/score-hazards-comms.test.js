@@ -10,7 +10,7 @@ describe('health score', () => {
   it('weights sum to 100', () => {
     expect(INDICATORS.reduce((s, m) => s + m.weight, 0)).toBe(100);
     expect(Object.fromEntries(INDICATORS.map((m) => [m.id, m.weight]))).toEqual({
-      hr: 20, bp: 20, sleep: 20, glucose: 15, radiation: 15, temp: 10,
+      spo2: 20, hr: 15, bp: 15, sleep: 15, glucose: 15, radiation: 10, temp: 10,
     });
   });
   // The score maths (IITT + ABCDE) is covered in tests/triage.test.js.

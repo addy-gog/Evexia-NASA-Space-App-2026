@@ -27,15 +27,15 @@ function twoSided(cfg, lo, hi) {
 }
 
 function toCsv(logs, ctx) {
-  const cols = ['date', 'time', 'mission_day', 'source', 'device', 'hr', 'sys', 'dia', 'glucose', 'temp', 'sleep', 'radiation_mGy_day', 'spe', 'environment', 'notes'];
+  const cols = ['date', 'time', 'mission_day', 'source', 'device', 'spo2', 'hr', 'sys', 'dia', 'glucose', 'temp', 'sleep', 'radiation_mGy_day', 'spe', 'environment', 'notes'];
   const esc = (v) => (v === undefined || v === null ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
   const rows = logs.map((l) =>
-    [formatDate(l.ts), formatTime(l.ts), missionDayOf(l.ts, ctx.missionStart), l.source, l.device, l.hr, l.sys, l.dia, l.glucose, l.temp, l.sleep, l.radiation, l.spe ? 'yes' : '', l.environment, l.notes].map(esc).join(','),
+    [formatDate(l.ts), formatTime(l.ts), missionDayOf(l.ts, ctx.missionStart), l.source, l.device, l.spo2, l.hr, l.sys, l.dia, l.glucose, l.temp, l.sleep, l.radiation, l.spe ? 'yes' : '', l.environment, l.notes].map(esc).join(','),
   );
   return [cols.join(','), ...rows].join('\n');
 }
 
-/** Symptom notes the astronaut saved from Evexia AI, newest first. */
+/** Symptom notes the astronaut saved from Evexia SI, newest first. */
 function SymptomNotes() {
   const notes = useHealthStore((s) => s.symptomNotes);
   const setNoteStatus = useHealthStore((s) => s.setSymptomNoteStatus);
@@ -43,7 +43,7 @@ function SymptomNotes() {
   return (
     <section className="hud-panel" aria-labelledby="notes-h" data-testid="symptom-notes">
       <h2 id="notes-h" className="text-lg font-bold">Symptom notes</h2>
-      <p className="text-sm text-ink-3">Saved from Evexia AI after you confirmed them. Descriptions only, not diagnoses.</p>
+      <p className="text-sm text-ink-3">Saved from Evexia SI after you confirmed them. Descriptions only, not diagnoses.</p>
       <ul className="mt-2 flex flex-col">
         {notes.map((n) => (
           <li key={n.id} className="flex flex-wrap items-start gap-x-4 gap-y-1 border-b border-line/60 py-2.5 text-sm last:border-0">
@@ -100,6 +100,7 @@ export default function History() {
   const sl = THRESHOLDS.sleep;
 
   const charts = [
+    { id: 'spo2', title: 'Blood oxygen (SpO₂)', unit: '%', sevKey: 'spo2', lines: [{ key: 'spo2', name: 'Blood oxygen', color: 'rgb(var(--c-ink))' }], domain: [80, 100], bands: [{ from: 80, to: THRESHOLDS.spo2.amber[0], severity: 'red' }, { from: THRESHOLDS.spo2.amber[0], to: THRESHOLDS.spo2.green[0], severity: 'amber' }, { from: THRESHOLDS.spo2.green[0], to: 100, severity: 'green' }] },
     { id: 'hr', title: 'Resting heart rate', unit: 'bpm', sevKey: 'hr', lines: [{ key: 'hr', name: 'Heart rate', color: 'rgb(var(--c-ink))' }], domain: [30, 130], bands: twoSided(THRESHOLDS.hr, 30, 130) },
     { id: 'bp', title: 'Blood pressure', unit: 'mmHg', sevKey: 'bp', domain: [40, 180], lines: [{ key: 'sys', name: 'Systolic', color: 'rgb(var(--c-ink))' }, { key: 'dia', name: 'Diastolic', color: '#7dd3fc' }], bands: twoSided(THRESHOLDS.sys, 40, 180), refLines: [{ y: 85, label: 'dia amber 85' }, { y: 90, label: 'dia red 90' }] },
     { id: 'glucose', title: 'Fasting blood glucose', unit: 'mg/dL', sevKey: 'glucose', lines: [{ key: 'glucose', name: 'Glucose', color: 'rgb(var(--c-ink))' }], domain: [40, 160], bands: twoSided(THRESHOLDS.glucose, 40, 160) },
@@ -158,6 +159,7 @@ export default function History() {
                   <tr className="border-b border-line text-xs uppercase tracking-wide text-ink-3">
                     <th scope="col" className="py-2">Week of</th>
                     <th scope="col">Logs</th>
+                    <th scope="col">Avg SpO₂ (%)</th>
                     <th scope="col">Avg HR (bpm)</th>
                     <th scope="col">Avg BP (mmHg)</th>
                     <th scope="col">Avg glucose</th>
@@ -173,6 +175,7 @@ export default function History() {
                     <tr key={w.weekOf} className="num border-b border-line/60">
                       <th scope="row" className="py-2 font-semibold">{formatDate(w.weekOf)}</th>
                       <td>{w.logs}</td>
+                      <td>{w.spo2 ?? '—'}</td>
                       <td>{w.hr ?? '—'}</td>
                       <td>{w.sys != null ? `${w.sys}/${w.dia}` : '—'}</td>
                       <td>{w.glucose ?? '—'}</td>

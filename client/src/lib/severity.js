@@ -35,6 +35,18 @@ function result(value, severity, reason, sources, mode = 'absolute') {
   return { value, severity, reason, sources, mode };
 }
 
+/** Blood oxygen saturation (pulse oximeter). Low side only: 100 % is the maximum. */
+export function classifySpO2(spo2) {
+  const cfg = THRESHOLDS.spo2;
+  const { severity } = band(spo2, cfg);
+  const reasons = {
+    green: `${spo2}% blood oxygen is normal (${cfg.green[0]}% or more).`,
+    amber: `${spo2}% blood oxygen is a little low (${cfg.amber[0]}–${cfg.green[0] - 1}%).`,
+    red: `${spo2}% blood oxygen is low (under ${cfg.amber[0]}%): a breathing problem needs care now.`,
+  };
+  return result(spo2, severity, reasons[severity], cfg.sources);
+}
+
 export function classifyHeartRate(hr) {
   const cfg = THRESHOLDS.hr;
   const { severity, side } = band(hr, cfg);
@@ -248,6 +260,8 @@ export function evaluateReading(reading, ctx = {}) {
   const useBaseline = baselineMode && baseline;
   const maybe = (abs, fields) => (useBaseline ? applyBaseline(abs, fields, reading, baseline) : abs);
 
+  // Blood oxygen is always judged on absolute bands (a personal baseline must not make low oxygen look normal).
+  if (isNum(reading.spo2)) out.spo2 = classifySpO2(reading.spo2);
   if (isNum(reading.hr)) out.hr = maybe(classifyHeartRate(reading.hr), ['hr']);
   if (isNum(reading.sys) && isNum(reading.dia)) {
     out.bp = maybe(classifyBloodPressure(reading.sys, reading.dia), ['sys', 'dia']);

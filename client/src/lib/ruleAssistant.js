@@ -6,13 +6,15 @@
  */
 import { GUIDANCE, GREEN_MESSAGE } from '../content/guidance.js';
 import { HAZARDS } from '../content/hazards.js';
-import { INDICATORS } from '../config/thresholds.js';
+import { INDICATORS, TRIAGE } from '../config/thresholds.js';
 import { selfCareFirst, formatDelay } from './comms.js';
-import { SEVERITY_RANK } from './severity.js';
+import { activeFlags } from './triage.js';
+import { computeScore } from './score.js';
 
 const WORD = { green: 'NOMINAL', amber: 'CAUTION', red: 'CRITICAL' };
 
 const KEYWORDS = {
+  spo2: ['oxygen', 'spo2', 'sp02', 'o2', 'saturation', 'oximeter', 'breath', 'breathing', 'breathless', 'short of breath'],
   hr: ['heart', 'pulse', 'bpm', 'hr'],
   bp: ['blood pressure', 'pressure', 'bp', 'systolic', 'diastolic'],
   glucose: ['glucose', 'sugar', 'blood sugar', 'insulin'],
@@ -28,10 +30,37 @@ export function detectIndicators(question = '') {
     .map(([id]) => id);
 }
 
-const flagged = (results) =>
-  INDICATORS.filter((m) => results[m.id] && results[m.id].severity !== 'green').sort(
-    (a, b) => SEVERITY_RANK[results[b.id].severity] - SEVERITY_RANK[results[a.id].severity] || b.weight - a.weight,
+/** Flagged readings in triage order: IITT colour first, then the ABCDE survey. */
+const flagged = (results) => activeFlags(results).map((f) => INDICATORS.find((m) => m.id === f.id));
+
+/** "IITT Red (Emergent): needs care immediately." for the most urgent current flag, or '' if none. */
+function tierLine(results) {
+  const t = computeScore(results).triage;
+  if (!t.tier || t.tier === 'green') return '';
+  const tier = TRIAGE.tiers[t.tier];
+  return `IITT ${tier.colour} (${tier.label}): ${t.tier === 'red' ? 'needs care immediately' : 'needs care within 60 minutes'}.`;
+}
+
+/** Plain-language explanation of the score, the triage tier and the flight surgeon queue. */
+export function explainTriage(results = {}) {
+  const s = computeScore(results);
+  if (s.score == null) return 'No current readings yet, so there is no score or triage. Log your readings and I will explain them.';
+  const t = s.triage;
+  const tier = TRIAGE.tiers[t.tier];
+  const lines = [`Your health score is ${s.score}% (${s.band.label}). Triage: IITT ${tier.colour} (${tier.label}), target ${tier.target.toLowerCase()}.`];
+  if (t.flags.length) {
+    lines.push(`Order to deal with them, most urgent first:\n${t.flags.map((f, i) => `${i + 1}. ${INDICATORS.find((m) => m.id === f.id).short} (${WORD[f.severity].toLowerCase()}): ABCDE ${f.rank.letter}, ${f.rank.label.toLowerCase()}`).join('\n')}`);
+  } else {
+    lines.push('Nothing is flagged, so there is no cap: an all-green score sits between 85 and 100.');
+  }
+  if (s.capReason) lines.push(s.capReason);
+  if (s.penalty) lines.push(`${s.penalty} points are taken off because several readings are flagged at the same time.`);
+  lines.push(
+    'How it works: colour comes first (red, then yellow, then green), then the ABCDE check: airway and breathing, circulation, disability, exposure, behaviour. Each reading scores 85–100 in green, 79–50 in yellow and 39–0 in red. The most urgent problem caps the total, for example a red heart rate caps it at 45%, so the number shows how urgent things are. The flight surgeon sees the crew in this same order.',
   );
+  lines.push('This is decision support, not a diagnosis.');
+  return lines.join('\n\n');
+}
 
 /** First assistant message, generated from the current state. */
 export function summaryMessage(ctx = {}) {
@@ -42,7 +71,8 @@ export function summaryMessage(ctx = {}) {
   if (!f.length) return `${head}All current readings are nominal. Keep your routine.`;
   const first = f[0];
   const g = GUIDANCE[first.id][results[first.id].severity];
-  return `${head}${f.map((m) => `${m.short} (${WORD[results[m.id].severity].toLowerCase()})`).join(', ')} ${f.length > 1 ? 'need' : 'needs'} attention. Start with ${first.short.toLowerCase()}: ${g.selfCare[0]}`;
+  const tl = tierLine(results);
+  return `${head}${tl ? `${tl} ` : ''}${f.map((m) => `${m.short} (${WORD[results[m.id].severity].toLowerCase()})`).join(', ')} ${f.length > 1 ? 'need' : 'needs'} attention. Start with ${first.short.toLowerCase()}: ${g.selfCare[0]}`;
 }
 
 /**
@@ -72,12 +102,16 @@ export function ruleBasedAnswer(question, ctx = {}) {
     ];
     return lines.join('\n');
   }
+  if (!ids.length && /\b(score|triage|iitt|abcde|capped|cap|queue|percent|percentage|rank|ranking)\b|%/.test(q)) {
+    return explainTriage(results);
+  }
   if (!ids.length && /\b(first|start|priority|what should i do|next)\b/.test(q)) {
     const f = flagged(results);
     if (!f.length) return 'Nothing urgent. All current readings are nominal; measure again at your scheduled time.';
     const m = f[0];
     const g = GUIDANCE[m.id][results[m.id].severity];
-    return `Start with ${m.short.toLowerCase()} (${WORD[results[m.id].severity].toLowerCase()}). ${g.meaning}\n\n${(longDelay ? g.selfCare : g.actions).map((x) => `• ${x}`).join('\n')}${results[m.id].severity === 'red' ? '\n\nThis is critical: escalate to the flight surgeon now.' : ''}\n\nThis is decision support, not a diagnosis.`;
+    const tl = tierLine(results);
+    return `${tl ? `${tl} ` : ''}Start with ${m.short.toLowerCase()} (${WORD[results[m.id].severity].toLowerCase()}). ${g.meaning}\n\n${(longDelay ? g.selfCare : g.actions).map((x) => `• ${x}`).join('\n')}${results[m.id].severity === 'red' ? '\n\nThis is critical: escalate to the flight surgeon now.' : ''}\n\nThis is decision support, not a diagnosis.`;
   }
 
   if (!ids.length) ids = flagged(results).map((m) => m.id);

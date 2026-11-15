@@ -128,7 +128,7 @@ export default function Dashboard() {
         <div className="min-w-[280px] flex-1">
           <h1 className="page-title" data-testid="greeting">{greeting(profile?.name ?? user?.name, now)}</h1>
           <p className="mt-1.5 max-w-[620px] text-ink-3">
-            Your six readings on your body, with the next step for each. Judged against spaceflight-adjusted ranges{baselineMode ? ', compared with your own pre-flight normal' : ''}.
+            Your seven readings on your body, with the next step for each. Judged against spaceflight-adjusted ranges{baselineMode ? ', compared with your own pre-flight normal' : ''}.
           </p>
         </div>
         <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3">

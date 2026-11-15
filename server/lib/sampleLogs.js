@@ -72,6 +72,7 @@ function otherProfile(id, d) {
   if (id === 'c3' && d <= 4) p.sleep = 6.4 - (4 - d) * 0.2;
   if (id === 'c5' && d <= 2) {
     p.temp = 37.5 + (2 - d) * 0.15;
+    p.spo2 = 95 - (2 - d); // 95 → 93 %: oxygen drifting down with the chest infection (amber, ABCDE A/B)
     p.hr = 78;
     p.notes = 'Morning check. Sore throat and chills since last night.';
   }
@@ -98,6 +99,8 @@ export function generateSampleLogs({ days = 21, now = Date.now(), seed = 2026111
         id: `sample-${c.id}-${d}-am`,
         crewId: c.id,
         ts: morning.toISOString(),
+        // Blood oxygen does not draw from the random stream, so every other sample value stays as before.
+        spo2: p.spo2 ?? 97 + ((d + ci) % 3),
         hr: Math.round(p.hr + j(1.5)),
         sys: Math.round(p.sys + j(2)),
         dia: Math.round(p.dia + j(1.5)),

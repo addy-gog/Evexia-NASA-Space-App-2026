@@ -6,6 +6,22 @@
  * source tags.
  */
 export const GUIDANCE = {
+  spo2: {
+    hazard: 'hostileEnvironment',
+    why: 'In a sealed cabin the air is made by machines. A leak, a fault in the air system, high carbon dioxide or a chest infection can lower the oxygen in your blood, and the first signs (headache, breathlessness, poor focus) are easy to miss.',
+    amber: {
+      meaning: 'Your blood oxygen is a little low. Cold fingers, movement or a loose sensor often cause this, so measure again before worrying.',
+      selfCare: ['Warm your hands, keep still and re-measure on another finger.', 'Sit upright and take slow, deep breaths for 2 minutes, then measure again.', 'Tell a crewmate and check the cabin air readings (oxygen and carbon dioxide).'],
+      actions: ['Re-check in 15 minutes and again within the hour.', 'Note any breathlessness, cough, headache or confusion.'],
+    },
+    red: {
+      meaning: 'Your blood oxygen is low. Breathing comes first in any emergency, so this needs care now.',
+      selfCare: ['Stop what you are doing, sit upright and breathe slowly.', 'Alert your crew medical officer now; if you are short of breath, confused or your lips look blue, open emergency mode.', 'Ask a crewmate to check the cabin air system and use supplemental oxygen as your crew is trained to.'],
+      actions: ['Escalate to the flight surgeon with this report.', 'Re-measure every 5 minutes and do not stay alone.'],
+    },
+    countermeasure: 'Continuous cabin air monitoring (oxygen and carbon dioxide) and a pulse oximeter check whenever you feel short of breath or unusually tired.',
+    sources: ['CLINICAL_REF', 'HRP_HAZARDS'],
+  },
   hr: {
     hazard: 'gravity',
     why: 'Your heart adapts to weightlessness. A resting heart rate that changes can point to stress, poor sleep, dehydration, fever or deconditioning.',

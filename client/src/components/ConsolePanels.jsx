@@ -15,7 +15,7 @@ import { GUIDANCE } from '../content/guidance.js';
 import { HAZARDS, HAZARD_IDS } from '../content/hazards.js';
 import { DAY_MS } from '../lib/evaluate.js';
 
-const fieldsOf = { hr: ['hr'], bp: ['sys', 'dia'], glucose: ['glucose'], temp: ['temp'], sleep: ['sleep'], radiation: ['radiation'] };
+const fieldsOf = { spo2: ['spo2'], hr: ['hr'], bp: ['sys', 'dia'], glucose: ['glucose'], temp: ['temp'], sleep: ['sleep'], radiation: ['radiation'] };
 
 /* ---------- Reading card ---------- */
 function SliderRow({ field, value, onChange, label }) {
@@ -47,7 +47,8 @@ function SliderRow({ field, value, onChange, label }) {
 export function ReadingCard({ meta, result, snap, values, onChange, selected, onSelect, baselineMode, baseline, environment, now, edited }) {
   const sev = result?.severity;
   const reading = meta.id === 'bp' ? { sys: values.sys, dia: values.dia } : { [meta.id]: values[meta.id] };
-  const display = values[fieldsOf[meta.id][0]] === '' ? '—' : formatIndicatorValue(meta.id, Object.fromEntries(Object.entries(reading).map(([k, v]) => [k, v === '' ? undefined : Number(v)])));
+  const first = values[fieldsOf[meta.id][0]];
+  const display = first == null || first === '' ? '—' : formatIndicatorValue(meta.id, Object.fromEntries(Object.entries(reading).map(([k, v]) => [k, v === '' || v == null ? undefined : Number(v)])));
   let delta = '';
   if (baselineMode && baseline) {
     if (meta.id === 'bp' && values.sys !== '' && baseline.sys) {
@@ -241,7 +242,7 @@ function bandsFor(id, environment) {
     return { green: [0, g], amber: [g, a], domain: [0, 'auto'], key: 'radiation' };
   }
   const cfg = id === 'bp' ? t.sys : t[id];
-  const pad = { hr: [30, 130], bp: [60, 180], glucose: [40, 160], temp: [34.5, 39.5] }[id];
+  const pad = { spo2: [80, 100], hr: [30, 130], bp: [60, 180], glucose: [40, 160], temp: [34.5, 39.5] }[id];
   return { green: cfg.green, amber: cfg.amber, domain: pad, key: id === 'bp' ? 'sys' : id };
 }
 

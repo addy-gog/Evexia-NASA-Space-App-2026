@@ -71,7 +71,6 @@ const initial = {
   theme: 'dark', // 'dark' (default, deep space) or 'light'
   highContrast: false,
   reducedMotion: null,
-  simpleView: false,
   autoSync: { enabled: false, minutes: 30 },
   syncWindowMinutes: 15,
   telemetryKey: '',
@@ -154,7 +153,6 @@ export const useHealthStore = create(
         setHighContrast: (highContrast) => set({ highContrast }),
         setTheme: (theme) => set({ theme: theme === 'light' ? 'light' : 'dark' }),
         setReducedMotion: (reducedMotion) => set({ reducedMotion }),
-        setSimpleView: (simpleView) => set({ simpleView }),
         setAutoSync: (autoSync) => set({ autoSync: { ...get().autoSync, ...autoSync } }),
         setSyncWindow: (syncWindowMinutes) => set({ syncWindowMinutes }),
         setTelemetryKey: (telemetryKey) => set({ telemetryKey }),
@@ -278,7 +276,6 @@ export const useHealthStore = create(
         theme: s.theme,
         highContrast: s.highContrast,
         reducedMotion: s.reducedMotion,
-        simpleView: s.simpleView,
         autoSync: s.autoSync,
         syncWindowMinutes: s.syncWindowMinutes,
         telemetryKey: s.telemetryKey,

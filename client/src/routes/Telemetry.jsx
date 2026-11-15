@@ -10,7 +10,7 @@ import { formatTime, relativeTime, formatDose } from '../lib/format.js';
 import Sparkline from '../components/Sparkline.jsx';
 import { StatusBadge, SEVERITY_META } from '../components/Status.jsx';
 
-const LIVE_METRICS = ['hr', 'sys', 'dia', 'temp', 'glucose', 'radiation', 'sleep'];
+const LIVE_METRICS = ['spo2', 'hr', 'sys', 'dia', 'temp', 'glucose', 'radiation', 'sleep'];
 const STREAM_TEXT = {
   live: ['Live', 'text-ok-fg'],
   connecting: ['Connecting…', 'text-ink-3'],

@@ -4,6 +4,25 @@
  */
 export const GUIDE = [
   {
+    id: 'spo2',
+    title: 'Blood oxygen (SpO₂)',
+    unit: '%',
+    device: 'Finger pulse oximeter (or a wrist tracker with SpO₂)',
+    what: 'How much of the oxygen-carrying capacity of your blood is in use, measured by light shining through your fingertip.',
+    whySpace:
+      'The cabin air is made by machines. A leak, an air-system fault, high carbon dioxide or a chest infection can lower your blood oxygen before you notice. Breathing is the first thing checked in any emergency.',
+    steps: [
+      'Sit still for 2 minutes. Warm your hands if they are cold.',
+      'Remove nail polish from the finger you use.',
+      'Clip the oximeter on a fingertip and keep the hand still at heart level.',
+      'Wait until the number is steady (about 30 seconds) and enter it.',
+    ],
+    normal: '95% to 100%',
+    worry: 'Below 90%, or any reading with breathlessness, confusion, chest pain or blue lips.',
+    hazard: 'hostileEnvironment',
+    sources: ['CLINICAL_REF', 'HRP_HAZARDS'],
+  },
+  {
     id: 'hr',
     title: 'Resting heart rate',
     unit: 'bpm',

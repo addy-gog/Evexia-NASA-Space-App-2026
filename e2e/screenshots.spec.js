@@ -71,8 +71,7 @@ test('emergency, NASA data, guide and simple view', async ({ page }) => {
   await page.goto('/guide');
   await page.screenshot({ path: `${DIR}/guide.png` });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Simple view' }).click();
   await page.waitForTimeout(500);
   await page.evaluate(() => window.scrollTo(0, document.querySelector('[data-testid="body-container"]').getBoundingClientRect().top + window.scrollY - 170));
-  await page.screenshot({ path: `${DIR}/simple-view.png` });
+  await page.screenshot({ path: `${DIR}/body-map.png` });
 });

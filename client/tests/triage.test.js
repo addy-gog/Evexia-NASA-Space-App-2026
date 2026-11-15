@@ -5,7 +5,7 @@ import { evaluateReading } from '../src/lib/severity.js';
 import { TRIAGE } from '../src/config/thresholds.js';
 
 // Every reading at the centre of its green range (or optimal): each indicator scores 100.
-const OPTIMAL = { hr: 70, sys: 112, dia: 72, glucose: 82, temp: 36.65, sleep: 8, radiation: 0 };
+const OPTIMAL = { spo2: 99, hr: 70, sys: 112, dia: 72, glucose: 82, temp: 36.65, sleep: 8, radiation: 0 };
 const health = (over = {}, ctx = {}) => computeHealth(evaluateReading({ ...OPTIMAL, ...over }, ctx));
 
 describe('IITT / ABCDE configuration', () => {
@@ -14,6 +14,8 @@ describe('IITT / ABCDE configuration', () => {
     expect(sum).toBe(100);
   });
   it('maps Evexia readings to ABCDE ranks', () => {
+    expect(rankOf('spo2').rank).toBe(1);
+    expect(rankOf('spo2').letter).toBe('A/B');
     expect(rankOf('hr').rank).toBe(2);
     expect(rankOf('bp').rank).toBe(2);
     expect(rankOf('glucose').rank).toBe(3);
@@ -62,6 +64,51 @@ describe('Step 1: per-reading score by depth in its zone', () => {
     const r = evaluateReading({ sleep: 5.8 }, { sleepHistory: [5.5] }).sleep;
     expect(r.severity).toBe('red');
     expect(indicatorScore('sleep', r)).toBe(39);
+  });
+});
+
+describe('blood oxygen (ABCDE A/B)', () => {
+  it('classifies 95 %+ green, 90–94 % amber, under 90 % red', () => {
+    expect(evaluateReading({ spo2: 98 }).spo2.severity).toBe('green');
+    expect(evaluateReading({ spo2: 95 }).spo2.severity).toBe('green');
+    expect(evaluateReading({ spo2: 94 }).spo2.severity).toBe('amber');
+    expect(evaluateReading({ spo2: 90 }).spo2.severity).toBe('amber');
+    expect(evaluateReading({ spo2: 89 }).spo2.severity).toBe('red');
+  });
+  it('scores 100 at 98 %+, 85 at 95 %, 79→50 across amber, 39→0 down to 80 %', () => {
+    const s = (x) => indicatorScore('spo2', evaluateReading({ spo2: x }).spo2);
+    expect(s(99)).toBe(100);
+    expect(s(95)).toBe(85);
+    expect(s(92)).toBeCloseTo(61.6, 1);
+    expect(s(88)).toBeCloseTo(31.2, 1);
+    expect(s(80)).toBe(0);
+  });
+  it('a personal baseline never makes low oxygen look normal', () => {
+    const r = evaluateReading({ spo2: 88, hr: 70 }, { baselineMode: true, baseline: { hr: 70 } });
+    expect(r.spo2.severity).toBe('red');
+  });
+  it('guide case 4, airway/breathing amber (SpO2 92 %) → capped at 72', () => {
+    const h = health({ spo2: 92 });
+    expect(h.triage.top.id).toBe('spo2');
+    expect(h.score).toBe(72);
+  });
+  it('guide case 7, airway/breathing red (SpO2 88 %) → capped at 39', () => {
+    expect(health({ spo2: 88 }).score).toBe(39);
+  });
+  it('guide case 8, SpO2 87 % + heart rate 134: breathing sets the cap, 7-point multi-red penalty, top of the queue', () => {
+    const h = health({ spo2: 87, hr: 134 });
+    expect(h.triage.top.id).toBe('spo2');
+    expect(h.cap).toBe(39);
+    expect(h.penalty).toBe(7);
+    expect(h.score).toBeLessThanOrEqual(39);
+    expect(h.triage.priority).toBe(1000 + 50 + 10);
+  });
+  it('all eight guide cases come out in order of urgency', () => {
+    const cases = [{}, { sleep: 5.5 }, { hr: 96 }, { spo2: 92 }, { temp: 38.2 }, { hr: 128 }, { spo2: 88 }, { spo2: 87, hr: 134 }];
+    const scores = cases.map((o) => health(o).score);
+    expect(scores).toEqual([...scores].sort((a, b) => b - a));
+    const prios = cases.map((o) => health(o).triage.priority);
+    expect(prios).toEqual([...prios].sort((a, b) => a - b));
   });
 });
 

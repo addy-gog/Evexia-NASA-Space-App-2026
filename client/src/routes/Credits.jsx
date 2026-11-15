@@ -8,7 +8,7 @@ export default function Credits() {
       <section className="hud-panel space-y-2 text-sm">
         <h2 className="text-lg font-bold">3D body</h2>
         <p>
-          The body map on the Console is a stylised model made from three.js primitives (original work, MIT). The full Body page uses these models, each under its own licence:
+          The Console body map and the Body page use these models, each under its own licence:
         </p>
         <ul className="list-disc space-y-1 pl-5" data-testid="model-credits">
           {MODEL_CREDITS.map((c) => (

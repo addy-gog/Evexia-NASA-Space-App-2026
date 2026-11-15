@@ -196,12 +196,21 @@ describe('wearable telemetry', () => {
   it.each([
     [{ deviceId: 'w', samples: [{ metric: 'hr', value: 70 }] }],
     [payload([])],
-    [payload([{ metric: 'spo2', value: 97 }])],
+    [payload([{ metric: 'co2', value: 0.4 }])], // not a body metric
     [payload([{ metric: 'hr', value: 'fast' }])],
     [payload([{ metric: 'hr', value: 70, ts: new Date(Date.now() + 3_600_000).toISOString() }])],
     [{ ...payload([{ metric: 'hr', value: 70 }]), crewId: 'zz' }],
   ])('invalid ingest → 400 (%#)', async (body) => {
     expect((await sx.post('/api/telemetry').send(body)).status).toBe(400);
+  });
+  it('accepts pulse-oximeter samples (blood oxygen, %)', async () => {
+    expect((await sx.post('/api/telemetry').send(payload([{ metric: 'spo2', value: 97 }]))).status).toBe(202);
+  });
+  it('stores and returns blood oxygen on a log entry', async () => {
+    const res = await sx.post('/api/readings').send({ id: 'spo2-test', crewId: 'c1', ts: new Date().toISOString(), spo2: 93, hr: 70, environment: 'station' });
+    expect(res.status).toBeLessThan(300);
+    expect(res.body.spo2).toBe(93);
+    expect(res.body.hr).toBe(70); // values land in the right columns
   });
   it('requires x-telemetry-key when TELEMETRY_KEY is set', async () => {
     const secured = createApp({ repo, assistantConfig: offlineConfig, telemetryKey: 's3cret', rateLimitMax: 1000 });
@@ -304,6 +313,29 @@ describe('assistant', () => {
     const res = await sx.post('/api/assistant').send({ question: 'Why is my heart rate amber?', context });
     expect(res.body).toMatchObject({ mode: 'offline', reason: 'no_api_key' });
     expect(res.body.answer).toMatch(/Resting heart rate is CAUTION/);
+  });
+  it('Claude gets the IITT/ABCDE method in the knowledge pack and this astronaut\'s triage in the context', async () => {
+    const create = vi.fn().mockResolvedValue({ model: 'claude-sonnet-5-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }] });
+    const a = createApp({ repo, assistantConfig: { ...offlineConfig, apiKey: 'k' }, assistantDeps: { client: { beta: { messages: { create } } } }, rateLimitMax: 1000 });
+    await (await signIn(a, 'okafor')).post('/api/assistant').send({ question: 'Why is my score low?', context });
+    const params = create.mock.calls[0][0];
+    const pack = params.system[1].text;
+    expect(pack).toMatch(/Interagency Integrated Triage Tool/);
+    expect(pack).toMatch(/Rank 2, C Circulation: heart rate 12\.5%, blood pressure 12\.5%\. Amber caps the overall score at 76%, red at 45%/);
+    expect(pack).toMatch(/Rank 1, A\/B Airway & breathing: blood oxygen 25%\. Amber caps the overall score at 72%, red at 39%/);
+    expect(pack).not.toMatch(/blood oxygen 25% \(not measured yet\)/);
+    expect(params.system[0].text).toMatch(/Triage order/);
+    // hr 96 amber (C) + glucose 130 red (D): red comes first, glucose sets the cap (D red = 50 %).
+    const prompt = JSON.stringify(params.messages);
+    expect(prompt).toMatch(/Triage: IITT Red \(Emergent\), target immediate/);
+    expect(prompt).toMatch(/Triage order, most urgent first: glucose \(red, ABCDE D[^;]*\); heart rate \(amber, ABCDE C/);
+  });
+  it('offline answers explain the score and triage', async () => {
+    const res = await sx.post('/api/assistant').send({ question: 'Explain my score', context });
+    expect(res.body.mode).toBe('offline');
+    expect(res.body.answer).toMatch(/IITT Red \(Emergent\)/);
+    expect(res.body.answer).toMatch(/1\. Glucose \(critical\): ABCDE D/);
+    expect(res.body.answer).toMatch(/2\. Heart rate \(caution\): ABCDE C/);
   });
   it('missing / too long question → 400', async () => {
     expect((await sx.post('/api/assistant').send({ context })).status).toBe(400);

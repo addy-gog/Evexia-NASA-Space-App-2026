@@ -31,6 +31,7 @@ async function tick(i) {
   const now = new Date().toISOString();
   hr = Math.max(48, Math.min(110, hr + (Math.random() - 0.5) * 3));
   await send('sim-watch-01', 'Simulated smartwatch (gateway)', [{ metric: 'hr', value: Math.round(hr), ts: now }]);
+  if (i % 10 === 0) await send('sim-oximeter-01', 'Simulated finger pulse oximeter', [{ metric: 'spo2', value: 96 + Math.round(Math.random() * 3), ts: now }]);
   if (i % 30 === 0) await send('sim-thermo-01', 'Simulated thermometer patch', [{ metric: 'temp', value: Number((36.6 + Math.random() * 0.3).toFixed(1)), ts: now }]);
   if (i % 60 === 0) await send('sim-bp-01', 'Simulated BP cuff', [{ metric: 'sys', value: 117 + Math.round(Math.random() * 6), ts: now }, { metric: 'dia', value: 75 + Math.round(Math.random() * 4), ts: now }]);
   if (i % 120 === 0) await send('sim-dosimeter-01', 'Simulated active dosimeter', [{ metric: 'radiation', value: Number((0.46 + Math.random() * 0.04).toFixed(3)), ts: now }]);

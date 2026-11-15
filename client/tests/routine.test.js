@@ -4,12 +4,12 @@ import { checkInStreak, dueToday, isCheckIn, openRechecks, readingsIn } from '..
 // Local noon on a fixed day, so day boundaries do not depend on the test machine's time of day.
 const NOW = new Date(2026, 10, 15, 12, 0, 0).getTime();
 const at = (daysAgo, hour = 7) => new Date(2026, 10, 15 - daysAgo, hour, 0, 0).toISOString();
-const full = (daysAgo, hour) => ({ ts: at(daysAgo, hour), hr: 64, sys: 115, dia: 73, glucose: 90, temp: 36.8, sleep: 7.5, radiation: 0.48 });
+const full = (daysAgo, hour) => ({ ts: at(daysAgo, hour), spo2: 98, hr: 64, sys: 115, dia: 73, glucose: 90, temp: 36.8, sleep: 7.5, radiation: 0.48 });
 const hrOnly = (daysAgo) => ({ ts: at(daysAgo, 21), hr: 66 });
 
 describe('check-in definition', () => {
   it('counts readings, with blood pressure needing both numbers', () => {
-    expect(readingsIn(full(0))).toBe(6);
+    expect(readingsIn(full(0))).toBe(7);
     expect(readingsIn({ ts: at(0), sys: 120 })).toBe(0);
     expect(readingsIn({ ts: at(0), hr: 60, sys: 120, dia: 80 })).toBe(2);
   });
@@ -62,19 +62,20 @@ describe('checkInStreak', () => {
 describe('dueToday', () => {
   const snap = (daysAgo, stale = false) => ({ ts: at(daysAgo), stale });
   it('nothing due when every reading was taken today', () => {
-    const s = { hr: snap(0), bp: snap(0), glucose: snap(0), temp: snap(0), sleep: snap(0), radiation: snap(0) };
+    const s = { spo2: snap(0), hr: snap(0), bp: snap(0), glucose: snap(0), temp: snap(0), sleep: snap(0), radiation: snap(0) };
     expect(dueToday(s, NOW)).toEqual([]);
   });
   it('lists readings not taken today, overdue (stale or never taken) first', () => {
     const s = { hr: snap(0), bp: snap(1), glucose: snap(3, true), temp: snap(0), sleep: snap(1) };
     const due = dueToday(s, NOW);
-    expect(due.map((d) => d.id)).toEqual(['glucose', 'radiation', 'bp', 'sleep']);
+    // Overdue first, then in ABCDE / catalogue order (blood oxygen leads).
+    expect(due.map((d) => d.id)).toEqual(['spo2', 'glucose', 'radiation', 'bp', 'sleep']);
     expect(due.find((d) => d.id === 'radiation')).toMatchObject({ overdue: true, lastTs: null });
     expect(due.find((d) => d.id === 'bp')).toMatchObject({ overdue: false, label: 'Blood pressure' });
   });
-  it('an empty snapshot makes all six readings overdue', () => {
+  it('an empty snapshot makes all seven readings overdue', () => {
     const due = dueToday({}, NOW);
-    expect(due).toHaveLength(6);
+    expect(due).toHaveLength(7);
     expect(due.every((d) => d.overdue)).toBe(true);
   });
 });

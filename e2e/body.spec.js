@@ -16,17 +16,14 @@ test.describe('Body page', () => {
     if (!/slow connection/.test(info.title)) await connection(page, '4g');
   });
 
-  test('on a slow connection it asks before downloading, then remembers the answer', async ({ page }) => {
+  test('on a slow connection the 3D body still loads straight away, with no 2D step first', async ({ page }) => {
     await connection(page, '2g');
     await signIn(page, 'okafor');
     await page.goto('/body');
-    await expect(page.getByTestId('body-stage')).toHaveAttribute('data-mode', '2d');
-    await expect(page.getByTestId('body-ask-first')).toContainText('6.2 MB');
-    await page.getByTestId('body-load-3d').click();
     await expect(page.getByTestId('body-stage')).toHaveAttribute('data-mode', '3d');
-    await page.reload();
-    await expect(page.getByTestId('body-stage')).toHaveAttribute('data-mode', '3d');
+    await expect(page.getByTestId('anatomy-viewer')).toBeVisible();
     await expect(page.getByTestId('body-ask-first')).toHaveCount(0);
+    await expect(page.getByTestId('body-load-3d')).toHaveCount(0);
   });
 
   test('Body replaces NASA in the main nav; NASA Data moves to the profile menu', async ({ page }) => {
@@ -75,11 +72,8 @@ test.describe('Body page', () => {
     await page.getByTestId('body-view-outside').click();
     await expect(page.getByTestId('anatomy-viewer')).toHaveAttribute('data-view', 'outside');
 
-    // Simple view swaps to the 2D map and back.
-    await page.getByTestId('body-simple-toggle').click();
-    await expect(page.getByTestId('body-stage')).toHaveAttribute('data-mode', '2d');
-    await page.getByTestId('body-simple-toggle').click();
-    await expect(page.getByTestId('body-stage')).toHaveAttribute('data-mode', '3d');
+    // No switch to a 2D map: the 3D body is the only body view when WebGL works.
+    await expect(page.getByTestId('body-simple-toggle')).toHaveCount(0);
   });
 
   test('a man astronaut gets the male bodies; the console link opens the page on its reading', async ({ page }) => {
@@ -106,7 +100,7 @@ test.describe('Body page', () => {
     expect(crashes, 'no uncaught errors without WebGL').toEqual([]);
     await expect(page.getByTestId('body-stage')).toHaveAttribute('data-mode', '2d');
     await expect(page.getByText('3D is not available in this browser')).toBeVisible();
-    await expect(page.getByTestId('body-regions').locator('li')).toHaveCount(6);
+    await expect(page.getByTestId('body-regions').locator('li')).toHaveCount(7);
   });
 
   test('credits name every bundled model and its licence', async ({ page }) => {
@@ -125,30 +119,24 @@ test.describe('Console body map', () => {
     test.setTimeout(150_000); // model download on a busy laptop
   });
 
-  test('on a fast connection the Console shows the realistic body with all six markers', async ({ page }) => {
+  test('on a fast connection the Console shows the realistic body with all seven markers', async ({ page }) => {
     await connection(page, '4g');
     await signIn(page, 'okafor');
     await expect(page.getByTestId('body-container')).toHaveAttribute('data-view', '3d');
     const body = page.getByTestId('body-3d');
     await expect(body).toHaveAttribute('data-model', 'realistic', { timeout: MODEL_TIMEOUT });
     await expect(body.locator('canvas')).toBeVisible({ timeout: MODEL_TIMEOUT });
-    for (const id of ['hr', 'bp', 'glucose', 'temp', 'sleep', 'radiation']) await expect(page.getByTestId(`hotspot-${id}`)).toBeVisible({ timeout: MODEL_TIMEOUT });
-    await expect(page.getByTestId('load-realistic-body')).toHaveCount(0);
+    for (const id of ['spo2', 'hr', 'bp', 'glucose', 'temp', 'sleep', 'radiation']) await expect(page.getByTestId(`hotspot-${id}`)).toBeVisible({ timeout: MODEL_TIMEOUT });
     await page.getByTestId('hotspot-glucose').click();
     await expect(page.getByTestId('reading-detail')).toHaveAttribute('data-indicator', 'glucose');
   });
 
-  test('on a slow connection the Console shows the light body until asked, then remembers', async ({ page }) => {
+  test('on a slow connection the Console still loads the realistic body straight away', async ({ page }) => {
     await connection(page, '2g');
     await signIn(page, 'okafor');
     await expect(page.getByTestId('body-container')).toHaveAttribute('data-view', '3d');
-    await expect(page.getByTestId('body-3d')).not.toHaveAttribute('data-model', 'realistic');
-    const load = page.getByTestId('load-realistic-body');
-    await expect(load).toContainText('MB');
-    await load.click();
-    await expect(page.getByTestId('body-3d')).toHaveAttribute('data-model', 'realistic');
-    await page.reload();
     await expect(page.getByTestId('body-3d')).toHaveAttribute('data-model', 'realistic');
     await expect(page.getByTestId('load-realistic-body')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Simple view' })).toHaveCount(0);
   });
 });

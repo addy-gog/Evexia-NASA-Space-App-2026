@@ -17,6 +17,7 @@ const DEVICE = {
 function readingRows(values) {
   const rows = [];
   if (values.sys !== undefined) rows.push(['Blood pressure', `${values.sys}/${values.dia}`, 'mmHg']);
+  if (values.spo2 !== undefined) rows.push(['Blood oxygen', values.spo2, '%']);
   if (values.hr !== undefined) rows.push(['Heart rate', values.hr, 'bpm']);
   if (values.glucose !== undefined) rows.push(['Glucose', values.glucose, 'mg/dL']);
   if (values.temp !== undefined) rows.push(['Temperature', values.temp.toFixed(1), '°C']);
@@ -67,7 +68,7 @@ export default function ActionCard({ action, onOpenReport }) {
     );
     onConfirm = () => {
       const entry = addLog(action.values, {
-        notes: 'Read from a device photo by Evexia AI and checked by the astronaut before saving.',
+        notes: 'Read from a device photo by Evexia SI and checked by the astronaut before saving.',
         source: 'manual',
         device: DEVICE[action.device] ?? 'Device photo',
       });

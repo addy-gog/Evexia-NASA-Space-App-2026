@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ENVIRONMENTS } from '../../client/src/config/thresholds.js';
+import { ENVIRONMENTS, TRIAGE } from '../../client/src/config/thresholds.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const NASA_DIR = path.join(here, '..', 'data', 'nasa');
@@ -201,6 +201,32 @@ export function getRadiationReference(environment) {
 
 // ---------- The pack ----------
 
+/**
+ * How Evexia prioritises (IITT + ABCDE), written from the same TRIAGE config the app scores with,
+ * so the assistant's explanation can never drift from the numbers on screen.
+ */
+export function triageSection() {
+  const tiers = ['red', 'amber', 'green']
+    .map((k) => `- ${TRIAGE.tiers[k].colour} (${TRIAGE.tiers[k].label}): target ${TRIAGE.tiers[k].target.toLowerCase()}.`)
+    .join('\n');
+  const tracked = new Set(['spo2', 'hr', 'bp', 'glucose', 'temp', 'sleep', 'radiation']);
+  const NAMES = { spo2: 'blood oxygen', hr: 'heart rate', bp: 'blood pressure', glucose: 'glucose', pvt: 'reaction time', sans: 'SANS vision', radiation: 'radiation dose', temp: 'temperature', sleep: 'sleep', mood: 'mood and stress', exercise: 'exercise' };
+  const ranks = TRIAGE.ranks
+    .map((r) => {
+      const ind = Object.entries(r.weights).map(([id, w]) => `${NAMES[id]} ${w}%${tracked.has(id) ? '' : ' (not measured yet)'}`).join(', ');
+      return `- Rank ${r.rank}, ${r.letter} ${r.label}: ${ind}. Amber caps the overall score at ${r.amberCap}%, red at ${r.redCap}%.`;
+    })
+    .join('\n');
+  return `## How Evexia prioritises: IITT colour tiers and the ABCDE survey (team design guide based on the Interagency Integrated Triage Tool by WHO, ICRC and MSF)
+Colour tier comes first, then the ABCDE primary survey (airway and breathing, circulation, disability, exposure, behaviour):
+${tiers}
+${ranks}
+- Health score: each reading scores 85–100 in green (100 at the middle of its range), 79 down to 50 in amber, 39 down to 0 in red. The weighted average loses ${TRIAGE.penalty.amber} points for each extra amber flag and ${TRIAGE.penalty.red} for each extra red flag, then is capped by the most urgent flag (colour first, then ABCDE rank). All green and no cap: 85–100.
+- Flight surgeon queue: priority = colour (red ${TRIAGE.tiers.red.weight}, amber ${TRIAGE.tiers.amber.weight}, green ${TRIAGE.tiers.green.weight}) + ABCDE rank of the top flag (A/B 50, C 40, D 30, E 20, behaviour 10) + ${TRIAGE.flagCountWeight} per flag. Higher is seen first.
+- Reaction time, SANS vision, mood and exercise are in the method but Evexia does not measure them yet; their weight is shared by the readings it does measure.
+- When explaining a score, use the "Triage" lines in the context: they are computed by Evexia. Do not recompute the numbers yourself.`;
+}
+
 function buildPack() {
   const labs = ['glucose', 'white_blood_cell_count', 'hematocrit', 'potassium', 'calcium'].map(labSummaryLine).filter(Boolean).join('\n');
   const env = Object.entries(RADIATION_REFERENCE)
@@ -221,7 +247,7 @@ Use this sourced knowledge to answer. When a fact below supports your answer, na
 
 ## What Evexia's thresholds are
 - Sourced: glucose green 65–99 mg/dL (Inspiration4 lab range, NASA OSDR); temperature red below 35.0 °C (NASA-STD-3001); 8.5 h sleep target; radiation limits above.
-- Demonstration values, to be verified: heart rate, blood pressure, upper glucose bands and fever bands. NASA publishes no green/amber/red cut-offs for these, and NASA's open data holds no astronaut vital signs.
+- Demonstration values, to be verified: blood oxygen (green 95% or more, amber 90–94%, red below 90%, the usual clinical bands), heart rate, blood pressure, upper glucose bands and fever bands. NASA publishes no green/amber/red cut-offs for these, and NASA's open data holds no astronaut vital signs.
 
 ## Radiation by environment (NASA RadLab measurements and published figures)
 ${env}
@@ -239,6 +265,8 @@ ${labs}
 - Radiation (space radiation hazard): raises cancer risk and can affect the brain, heart and eyes. Instruments on the ISS measure exposure; shelters protect during solar events.
 - Bone and muscle (gravity fields): bones lose 1% to 1.5% of density a month in weightlessness; ISS crews exercise about 1.5 hours a day, six to seven days a week.
 - Distance from Earth: on Mars the one-way message delay is up to 20 minutes, so crews must handle medical emergencies with minimal support from Earth.
+
+${triageSection()}
 
 ## How often problems happen on a mission (NASA Integrated Medical Model sample, ISS missions, NASA-STD-3001 Table E.2-1)
 Late insomnia 13.85 per mission; late headache 5.25; respiratory infection 3.46; space-adaptation insomnia 2.70; CO2 headache 2.15; SANS eye changes 2.08; allergic reaction 1.18; influenza 0.11.

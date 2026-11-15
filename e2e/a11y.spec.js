@@ -93,7 +93,7 @@ test.describe('Accessibility (axe): zero serious or critical violations', () => 
     await signIn(page, 'okafor');
     await mockClaude(page);
     await page.getByTestId('assistant-open').click();
-    await page.getByLabel('Message Evexia AI').fill('I have chest pain and a red patch');
+    await page.getByLabel('Message Evexia SI').fill('I have chest pain and a red patch');
     await page.getByRole('button', { name: 'Send', exact: true }).click();
     await expect(page.getByTestId('action-report')).toBeVisible();
     await expect(page.getByTestId('assistant-emergency')).toBeVisible();
@@ -158,7 +158,7 @@ test.describe('Performance sanity', () => {
     await page.goto('/guide');
     await expect(page.locator('main h1')).toBeVisible();
     expect(Date.now() - t0).toBeLessThan(5000);
-    expect(scripts.some((u) => /Body3D-/.test(u)), 'the 3D body should not load on the Guide page').toBe(false);
+    expect(scripts.some((u) => /AnatomyViewer-/.test(u)), 'the 3D body should not load on the Guide page').toBe(false);
   });
 
   test('navigating away and back does not leak WebGL canvases', async ({ page }) => {

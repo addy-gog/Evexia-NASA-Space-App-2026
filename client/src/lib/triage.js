@@ -57,6 +57,15 @@ export function twoSidedScore(x, green, amber, critical) {
   return { zone: 'red', score: redScore(low ? frac(aLo - x, aLo - critical[0]) : frac(x - aHi, critical[1] - aHi)) };
 }
 
+/** Blood oxygen: higher is better up to the optimum. Green ≥ 95 %, amber 90–94 %, red < 90 %. */
+export function spo2Score(x) {
+  const greenMin = THRESHOLDS.spo2.green[0];
+  const redBelow = THRESHOLDS.spo2.amber[0];
+  if (x >= greenMin) return { zone: 'green', score: greenScore(1 - frac(x - greenMin, TRIAGE.spo2Optimal - greenMin)) };
+  if (x >= redBelow) return { zone: 'amber', score: amberScore(frac(greenMin - x, greenMin - redBelow)) };
+  return { zone: 'red', score: redScore(frac(redBelow - x, redBelow - TRIAGE.critical.spo2)) };
+}
+
 /** Sleep: more is better up to the optimum. Green ≥ 7 h, amber 5–7 h, red < 5 h. */
 export function sleepScore(h) {
   const { greenMin, redSingleNight } = THRESHOLDS.sleep;
@@ -83,7 +92,8 @@ export function indicatorScore(id, result) {
   if (!sev) return null;
   const c = TRIAGE.critical;
   let z = null;
-  if (id === 'hr' && isNum(result.value)) z = twoSidedScore(result.value, THRESHOLDS.hr.green, THRESHOLDS.hr.amber, c.hr);
+  if (id === 'spo2' && isNum(result.value)) z = spo2Score(result.value);
+  else if (id === 'hr' && isNum(result.value)) z = twoSidedScore(result.value, THRESHOLDS.hr.green, THRESHOLDS.hr.amber, c.hr);
   else if (id === 'bp' && isNum(result.sys) && isNum(result.dia)) {
     const s = twoSidedScore(result.sys, THRESHOLDS.sys.green, THRESHOLDS.sys.amber, c.sys);
     const d = twoSidedScore(result.dia, THRESHOLDS.dia.green, THRESHOLDS.dia.amber, c.dia);

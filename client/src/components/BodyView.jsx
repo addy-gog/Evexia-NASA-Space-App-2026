@@ -10,11 +10,9 @@ import { GUIDE } from '../content/guide.js';
 import { HAZARDS } from '../content/hazards.js';
 import { useHealthStore, usePrefersReducedMotion } from '../store/useHealthStore.js';
 import { hasWebGL } from '../lib/webgl.js';
-import { BODY_MODELS, bodyKindFor } from '../config/anatomy.js';
-import { shouldAskFirst, rememberConsent } from '../lib/bodyConsent.js';
+import { bodyKindFor } from '../config/anatomy.js';
 
-// Light primitive body (fallback on slow connections) and the realistic body shared with the Body page.
-const Body3D = lazy(() => import('./Body3D.jsx'));
+// The realistic body, shared with the Body page.
 const AnatomyViewer = lazy(() => import('./body/AnatomyViewer.jsx'));
 const LABELS = Object.fromEntries(Object.entries(HOTSPOTS).map(([id, h]) => [id, h.short]));
 
@@ -88,8 +86,6 @@ export function ReadingDetail({ id, result, reading }) {
 export default function BodyView({ status: statusProp, selected: selProp, onSelect: onSelProp }) {
   const storeStatus = useHealthStore((s) => s.status);
   const status = statusProp ?? storeStatus;
-  const simpleView = useHealthStore((s) => s.simpleView);
-  const setSimpleView = useHealthStore((s) => s.setSimpleView);
   const reduced = usePrefersReducedMotion();
   const [webgl] = useState(() => hasWebGL());
   const [yaw, setYaw] = useState(0);
@@ -99,12 +95,11 @@ export default function BodyView({ status: statusProp, selected: selProp, onSele
 
   const profile = useHealthStore((s) => s.profile);
   const kind = bodyKindFor(profile?.sex);
-  // Realistic body unless the connection is slow; then the light body plus a "load" button.
-  const [realistic, setRealistic] = useState(() => !shouldAskFirst());
   const orientation = useMemo(() => ({ azimuth: yaw }), [yaw]);
 
   const regions = useMemo(() => buildRegions(status.results, status.reading), [status]);
-  const use3D = webgl && !simpleView;
+  // 3D straight away; the 2D map appears only when this browser cannot run 3D (no WebGL).
+  const use3D = webgl;
   const step = (20 * Math.PI) / 180;
   const limit = (40 * Math.PI) / 180;
 
@@ -129,11 +124,6 @@ export default function BodyView({ status: statusProp, selected: selProp, onSele
               </button>
             </>
           )}
-          {webgl && (
-            <button type="button" className="btn-ghost min-h-touch px-3 py-1 text-sm" aria-pressed={simpleView} onClick={() => setSimpleView(!simpleView)}>
-              {simpleView ? '3D view' : 'Simple view'}
-            </button>
-          )}
           {!webgl && <span className="text-xs text-ink-3">3D unavailable: simple view</span>}
         </div>
       </div>
@@ -147,27 +137,15 @@ export default function BodyView({ status: statusProp, selected: selProp, onSele
         {use3D ? (
           <WebGLBoundary fallback={<Body2D regions={regions} selected={selected} onSelect={onSelect} reduced={reduced} />}>
             <Suspense fallback={<div className="flex h-full items-center justify-center text-ink-3" role="status">Loading 3D body…</div>}>
-              {realistic ? (
-                <div className="absolute inset-0" data-testid="body-3d" data-model="realistic">
-                  <AnatomyViewer kind={kind} view="outside" explode={0} orientation={orientation} regions={regions} selected={selected} onSelect={onSelect} reduced={reduced} labels={LABELS} zoom={false} markerTestId="hotspot" />
-                </div>
-              ) : (
-                <Body3D regions={regions} selected={selected} onSelect={onSelect} yaw={yaw} reduced={reduced} />
-              )}
+              <div className="absolute inset-0" data-testid="body-3d" data-model="realistic">
+                <AnatomyViewer kind={kind} view="outside" explode={0} orientation={orientation} regions={regions} selected={selected} onSelect={onSelect} reduced={reduced} labels={LABELS} zoom={false} markerTestId="hotspot" />
+              </div>
             </Suspense>
           </WebGLBoundary>
         ) : (
           <Body2D regions={regions} selected={selected} onSelect={onSelect} reduced={reduced} />
         )}
         {use3D && <span className="pointer-events-none absolute bottom-3 left-3 rounded-lg border border-line bg-surface px-2 py-1 text-[11px] text-ink-3">Drag to rotate</span>}
-        {use3D && !realistic && (
-          <button type="button" className="btn-ghost absolute bottom-3 right-3 min-h-touch bg-surface px-3 text-sm" onClick={() => {
-              rememberConsent();
-              setRealistic(true);
-            }} data-testid="load-realistic-body">
-            Load realistic body ({BODY_MODELS[kind].outerMB} MB)
-          </button>
-        )}
       </div>
 
       <ReadingDetail id={selected} result={status.results[selected]} reading={status.reading} />

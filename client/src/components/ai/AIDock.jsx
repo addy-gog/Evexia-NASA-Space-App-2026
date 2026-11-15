@@ -23,7 +23,7 @@ import EscalationDialog from '../EscalationDialog.jsx';
 import CameraDialog from './CameraDialog.jsx';
 
 const Companion = lazy(() => import('./Companion.jsx'));
-const CHIPS = ['What should I do first?', 'Why does the delay matter?', 'Draft a report'];
+const CHIPS = ['What should I do first?', 'Explain my score', 'Why does the delay matter?', 'Draft a report'];
 const HISTORY_SENT = 8;
 
 function Icon({ d, size = 20 }) {
@@ -213,9 +213,9 @@ export default function AIDock() {
     attachPhoto(file);
   };
 
-  // Starts with the visible text ("Ask Evexia AI" + status line) so voice-control users can say what they see; aria-expanded gives open/closed.
+  // Starts with the visible text ("Ask Evexia SI" + status line) so voice-control users can say what they see; aria-expanded gives open/closed.
   const statusLine = open ? 'Tap to minimise' : flagged ? `${flagged} item${flagged > 1 ? 's' : ''} to review` : 'All nominal · ask anything';
-  const aria = `Ask Evexia AI, ${statusLine}`;
+  const aria = `Ask Evexia SI, ${statusLine}`;
   const modeText = offline ? 'Offline · rule-based fallback' : fallback ? 'Online · rule-based (no Claude key)' : 'Online · powered by Claude';
   const size = expanded ? 'sm:h-[min(820px,calc(100vh-156px))] sm:w-[min(680px,calc(100vw-48px))]' : 'sm:h-[min(600px,72vh)] sm:w-[380px]';
   const roundBtn = 'flex h-11 w-11 flex-none items-center justify-center rounded-full text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-50';
@@ -227,13 +227,13 @@ export default function AIDock() {
         <aside
           id="assistant-panel"
           className={`rise fixed inset-0 z-50 flex flex-col bg-bg sm:inset-auto sm:bottom-[132px] sm:right-6 sm:rounded-card sm:border sm:border-line sm:bg-surface sm:shadow-panel ${size}`}
-          aria-label="Evexia AI assistant"
+          aria-label="Evexia SI assistant"
           data-testid="assistant-panel"
           data-expanded={expanded}
         >
           <header className="flex items-center gap-1.5 border-b border-line px-4 py-3">
             <div className="min-w-0 flex-1">
-              <h2 className="whitespace-nowrap font-display text-lg font-bold">Evexia AI</h2>
+              <h2 className="whitespace-nowrap font-display text-lg font-bold">Evexia SI</h2>
               <p className={`truncate text-xs font-semibold ${busy ? 'text-accent-text' : 'text-ink-3'}`}>{busy ? (photo || shown.at(-1)?.photo ? 'Looking at the photo…' : 'Thinking…') : modeText}</p>
             </div>
             <button type="button" className="btn-ghost min-h-touch px-3 text-xs" aria-pressed={offline} onClick={() => setOffline(!offline)} data-testid="online-toggle">
@@ -296,7 +296,7 @@ export default function AIDock() {
               ),
             )}
             {busy && (
-              <div className="flex gap-1.5 self-start rounded-[16px_16px_16px_4px] border border-line bg-surface px-4 py-3.5" aria-label="Evexia AI is typing">
+              <div className="flex gap-1.5 self-start rounded-[16px_16px_16px_4px] border border-line bg-surface px-4 py-3.5" aria-label="Evexia SI is typing">
                 <span className="dot1 block h-[7px] w-[7px] rounded-full bg-accent" />
                 <span className="dot2 block h-[7px] w-[7px] rounded-full bg-accent" />
                 <span className="dot3 block h-[7px] w-[7px] rounded-full bg-accent" />
@@ -349,7 +349,7 @@ export default function AIDock() {
                 >
                   <Icon d={ICONS.plus} size={22} />
                 </button>
-                <label htmlFor="assistant-input" className="sr-only">Message Evexia AI</label>
+                <label htmlFor="assistant-input" className="sr-only">Message Evexia SI</label>
                 <input
                   id="assistant-input"
                   ref={inputRef}
@@ -458,7 +458,7 @@ export default function AIDock() {
           )}
         </span>
         <span className="hidden flex-col text-left lg:flex">
-          <span className="font-display text-[15px] font-bold text-ink">Ask Evexia AI</span>{' '}
+          <span className="font-display text-[15px] font-bold text-ink">Ask Evexia SI</span>{' '}
           <span className="text-xs text-ink-3">{statusLine}</span>
         </span>
       </button>

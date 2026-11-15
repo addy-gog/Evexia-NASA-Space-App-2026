@@ -8,12 +8,12 @@
 import { INDICATORS } from '../config/thresholds.js';
 import { DAY_MS, dayKey, sortLogs } from './evaluate.js';
 
-/** Readings a full daily check-in should include (the six indicators). */
+/** Readings a full daily check-in should include (at least four of the seven indicators). */
 const CHECK_IN_MIN_READINGS = 4;
 
 const has = (v) => typeof v === 'number' && Number.isFinite(v);
 
-/** How many of the six indicators one log entry covers (blood pressure needs both numbers). */
+/** How many of the seven indicators one log entry covers (blood pressure needs both numbers). */
 export function readingsIn(log) {
   let n = 0;
   for (const m of INDICATORS) {
@@ -22,7 +22,7 @@ export function readingsIn(log) {
   return n;
 }
 
-/** A full check-in covers at least four of the six readings. A single wearable heart-rate sync does not count. */
+/** A full check-in covers at least four of the seven readings. A single wearable heart-rate sync does not count. */
 export function isCheckIn(log) {
   return readingsIn(log) >= CHECK_IN_MIN_READINGS;
 }

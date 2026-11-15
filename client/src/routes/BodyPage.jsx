@@ -36,37 +36,12 @@ class ViewerBoundary extends Component {
   }
 }
 
-/**
- * Ask before downloading several MB on a slow link or with Save-Data on (the Ghana floor).
- * Once someone has said yes on this device, remember it (a per-device convenience only).
- */
-const CONSENT_KEY = 'evexia-body-3d';
-function shouldAskFirst() {
-  try {
-    if (window.localStorage.getItem(CONSENT_KEY) === 'yes') return false;
-  } catch {
-    /* storage blocked: just ask */
-  }
-  const c = typeof navigator !== 'undefined' ? navigator.connection : undefined;
-  return Boolean(c && (c.saveData || ['slow-2g', '2g', '3g'].includes(c.effectiveType)));
-}
-function rememberConsent() {
-  try {
-    window.localStorage.setItem(CONSENT_KEY, 'yes');
-  } catch {
-    /* storage blocked: we will ask again next time */
-  }
-}
-
 export default function BodyPage() {
   const status = useHealthStore((s) => s.status);
   const profile = useHealthStore((s) => s.profile);
-  const simpleView = useHealthStore((s) => s.simpleView);
-  const setSimpleView = useHealthStore((s) => s.setSimpleView);
   const reduced = usePrefersReducedMotion();
   const [params, setParams] = useSearchParams();
   const [webgl] = useState(() => hasWebGL());
-  const [consented, setConsented] = useState(() => !shouldAskFirst());
   const [view, setView] = useState('outside');
   const [explode, setExplode] = useState(0.6);
   const [orientation, setOrientation] = useState(null);
@@ -81,8 +56,8 @@ export default function BodyPage() {
   const select = useCallback((id) => setParams({ reading: id }, { replace: true }), [setParams]);
   const onStatus = useCallback((patch) => setViewer((v) => (Object.entries(patch).every(([k, x]) => v[k] === x) ? v : { ...v, ...patch })), []);
 
-  const use3D = webgl && !simpleView;
-  const show3D = use3D && consented;
+  // The 3D body loads straight away; the 2D map appears only when this browser cannot run 3D (no WebGL).
+  const show3D = webgl;
   const flagged = status.alerts.find((a) => a.id === selected);
 
   const twoD = <Body2D regions={regions} selected={selected} onSelect={select} reduced={reduced} />;
@@ -100,14 +75,9 @@ export default function BodyPage() {
         <div className="min-w-[260px] flex-1">
           <h1 className="page-title">Body</h1>
           <p className="mt-1.5 max-w-[62ch] text-ink-3">
-            Your six readings on a 3D body. Tap a marker to see what it means, or pick a view to look inside.
+            Your seven readings on a 3D body. Tap a marker to see what it means, or pick a view to look inside.
           </p>
         </div>
-        {webgl && (
-          <button type="button" className="btn-ghost min-h-touch px-3 text-sm" aria-pressed={simpleView} onClick={() => setSimpleView(!simpleView)} data-testid="body-simple-toggle">
-            {simpleView ? 'Show 3D body' : 'Simple view'}
-          </button>
-        )}
       </section>
 
       <div className="flex flex-wrap items-start gap-5">
@@ -145,12 +115,6 @@ export default function BodyPage() {
               <p className="absolute left-3 top-3 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink-2" role="status" data-testid="body-loading">
                 {viewerMsg}
               </p>
-            )}
-            {use3D && !consented && (
-              <div className="absolute inset-x-3 bottom-3 flex flex-wrap items-center gap-3 rounded-tile border border-line bg-surface p-3 shadow-float" data-testid="body-ask-first">
-                <p className="min-w-[200px] flex-1 text-sm text-ink-2">Your connection looks slow, so this is the simple body map. The 3D body is a {models.outerMB} MB download.</p>
-                <button type="button" className="btn-primary min-h-touch text-sm" onClick={() => { rememberConsent(); setConsented(true); }} data-testid="body-load-3d">Load the 3D body</button>
-              </div>
             )}
             {!webgl && <p className="absolute bottom-3 left-3 text-xs text-ink-3">3D is not available in this browser, so this is the simple body map.</p>}
           </div>

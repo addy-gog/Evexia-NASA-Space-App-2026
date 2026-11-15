@@ -175,7 +175,6 @@ export default function Settings() {
             description={s.reducedMotion === null ? 'Following your system setting. Turn on to make pulses a static glow.' : 'Pulses become a static glow; camera moves are instant.'}
             testid="motion-toggle"
           />
-          <Toggle id="sv" label="Simple view (2D body)" checked={s.simpleView} onChange={s.setSimpleView} description="Show a 2D body instead of the 3D model. Used automatically when WebGL is unavailable." testid="simple-toggle" />
         </div>
       </section>
 

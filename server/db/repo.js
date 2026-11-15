@@ -1,7 +1,7 @@
 /** Data-access functions. All SQL lives here. */
 import { plain } from './index.js';
 
-const FIELDS = ['hr', 'sys', 'dia', 'glucose', 'temp', 'sleep', 'radiation'];
+const FIELDS = ['spo2', 'hr', 'sys', 'dia', 'glucose', 'temp', 'sleep', 'radiation'];
 
 export function createRepo(db) {
   const q = {
@@ -23,9 +23,10 @@ export function createRepo(db) {
     sessionDelete: db.prepare('DELETE FROM sessions WHERE token_hash = ?'),
     sessionPrune: db.prepare('DELETE FROM sessions WHERE expires_at <= ?'),
     readingUpsert: db.prepare(
-      `INSERT INTO readings (id, crew_id, ts, hr, sys, dia, glucose, temp, sleep, radiation, spe, environment, source, device, notes, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET ts = excluded.ts, hr = excluded.hr, sys = excluded.sys, dia = excluded.dia,
+      // Value columns must stay in the same order as FIELDS.
+      `INSERT INTO readings (id, crew_id, ts, spo2, hr, sys, dia, glucose, temp, sleep, radiation, spe, environment, source, device, notes, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET ts = excluded.ts, spo2 = excluded.spo2, hr = excluded.hr, sys = excluded.sys, dia = excluded.dia,
          glucose = excluded.glucose, temp = excluded.temp, sleep = excluded.sleep, radiation = excluded.radiation,
          spe = excluded.spe, environment = excluded.environment, source = excluded.source, device = excluded.device, notes = excluded.notes`,
     ),
@@ -118,7 +119,7 @@ export function createRepo(db) {
     getBaseline(crewId) {
       const r = plain(q.baselineGet.get(crewId));
       if (!r) return null;
-      return { crewId, ...Object.fromEntries(FIELDS.filter((f) => f !== 'radiation').map((f) => [f, r[f]])) };
+      return { crewId, ...Object.fromEntries(FIELDS.filter((f) => f !== 'radiation' && f !== 'spo2').map((f) => [f, r[f]])) };
     },
     putBaseline(crewId, b) {
       q.baselineUpsert.run(crewId, ...['hr', 'sys', 'dia', 'glucose', 'temp', 'sleep'].map((f) => b[f] ?? null));

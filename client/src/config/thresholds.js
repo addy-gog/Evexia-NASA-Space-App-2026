@@ -80,6 +80,7 @@ export const SOURCES = {
 
 /** Plausibility limits for inline validation (impossible values are rejected). */
 export const VALID_RANGES = {
+  spo2: { min: 50, max: 100, step: 1 }, // blood oxygen saturation, %
   hr: { min: 20, max: 250, step: 1 },
   sys: { min: 50, max: 260, step: 1 },
   dia: { min: 30, max: 160, step: 1 },
@@ -91,16 +92,17 @@ export const VALID_RANGES = {
 
 /** Indicator catalogue: id, label, unit, score weight and 3D body region. */
 export const INDICATORS = [
-  { id: 'hr', label: 'Resting heart rate', short: 'Heart rate', unit: 'bpm', weight: 20, region: 'heart', fields: ['hr'] },
-  { id: 'bp', label: 'Blood pressure', short: 'Blood pressure', unit: 'mmHg', weight: 20, region: 'vessels', fields: ['sys', 'dia'] },
+  { id: 'spo2', label: 'Blood oxygen (SpO₂)', short: 'Oxygen', unit: '%', weight: 20, region: 'lungs', fields: ['spo2'] },
+  { id: 'hr', label: 'Resting heart rate', short: 'Heart rate', unit: 'bpm', weight: 15, region: 'heart', fields: ['hr'] },
+  { id: 'bp', label: 'Blood pressure', short: 'Blood pressure', unit: 'mmHg', weight: 15, region: 'vessels', fields: ['sys', 'dia'] },
   { id: 'glucose', label: 'Fasting blood glucose', short: 'Glucose', unit: 'mg/dL', weight: 15, region: 'pancreas', fields: ['glucose'] },
   { id: 'temp', label: 'Body temperature', short: 'Temperature', unit: '°C', weight: 10, region: 'skin_shell', fields: ['temp'] },
-  { id: 'sleep', label: 'Sleep', short: 'Sleep', unit: 'h', weight: 20, region: 'brain', fields: ['sleep'] },
-  { id: 'radiation', label: 'Radiation dose (dosimeter)', short: 'Radiation', unit: 'mGy/day', weight: 15, region: 'radiation_shell', fields: ['radiation'] },
+  { id: 'sleep', label: 'Sleep', short: 'Sleep', unit: 'h', weight: 15, region: 'brain', fields: ['sleep'] },
+  { id: 'radiation', label: 'Radiation dose (dosimeter)', short: 'Radiation', unit: 'mGy/day', weight: 10, region: 'radiation_shell', fields: ['radiation'] },
 ];
 
 export const INDICATOR_IDS = INDICATORS.map((i) => i.id);
-export const READING_FIELDS = ['hr', 'sys', 'dia', 'glucose', 'temp', 'sleep', 'radiation'];
+export const READING_FIELDS = ['spo2', 'hr', 'sys', 'dia', 'glucose', 'temp', 'sleep', 'radiation'];
 
 /**
  * Absolute thresholds. `green` is the inclusive green range. `amber` is the
@@ -108,6 +110,9 @@ export const READING_FIELDS = ['hr', 'sys', 'dia', 'glucose', 'temp', 'sleep', '
  * red. Continuous comparisons, so decimals behave (49.5 bpm amber).
  */
 export const THRESHOLDS = {
+  // Blood oxygen: below 90 % is hypoxaemia, the usual clinical action line; 95 % and above is normal at cabin pressure.
+  // Demonstration bands, like heart rate and blood pressure: NASA publishes no SpO2 cut-offs. Low side only (100 % is the maximum).
+  spo2: { green: [95, 100], amber: [90, 100], sources: ['CLINICAL_REF'] },
   hr: { green: [50, 90], amber: [40, 100], sources: ['CLINICAL_REF'] },
   sys: { green: [95, 129], amber: [90, 139], sources: ['CLINICAL_REF'] },
   dia: { green: [60, 84], amber: [60, 89], sources: ['CLINICAL_REF'] },
@@ -162,7 +167,7 @@ export const SCORE = {
  * Source: "IITT Clinical Prioritization Guide" (team design doc, Nov 2026). Weights and caps from that guide;
  * the `critical` extremes used to grade how deep a reading sits in its red zone are demonstration values.
  *
- * Indicators listed under a rank but not measured by Evexia yet (spo2, pvt, sans, mood, exercise) are
+ * Indicators listed under a rank but not measured by Evexia yet (pvt, sans, mood, exercise) are
  * skipped: the weights of the readings present are renormalised, exactly as missing readings are today.
  */
 export const TRIAGE = {
@@ -185,7 +190,9 @@ export const TRIAGE = {
   penalty: { amber: 3, red: 7 },
   flagCountWeight: 5,
   // A reading at or beyond these limits scores 0 % (demonstration values). [low, high] for two-sided readings.
-  critical: { hr: [30, 150], sys: [70, 200], dia: [40, 120], glucose: [40, 250], temp: [32, 40.5], sleepHours: 3, radiationMsv: 10 },
+  critical: { spo2: 80, hr: [30, 150], sys: [70, 200], dia: [40, 120], glucose: [40, 250], temp: [32, 40.5], sleepHours: 3, radiationMsv: 10 },
+  // Blood oxygen scores 100 % at this saturation or more, 85 % at the 95 % green minimum.
+  spo2Optimal: 98,
   // Sleep scores 100 % at this many hours or more, 85 % at the 7 h green minimum.
   sleepOptimal: 8,
 };
@@ -265,6 +272,7 @@ export const ENVIRONMENT_IDS = Object.keys(ENVIRONMENTS);
 
 /** Telemetry metrics accepted from wearables / gateways. */
 export const TELEMETRY_METRICS = {
+  spo2: { label: 'Blood oxygen', unit: '%' },
   hr: { label: 'Heart rate', unit: 'bpm' },
   sys: { label: 'Systolic BP', unit: 'mmHg' },
   dia: { label: 'Diastolic BP', unit: 'mmHg' },

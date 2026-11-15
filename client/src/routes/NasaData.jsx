@@ -159,7 +159,7 @@ function RadLab() {
 }
 
 /**
- * Questions Evexia AI found were not covered by the NASA data above.
+ * Questions Evexia SI found were not covered by the NASA data above.
  * The ground team reads this list to decide which source to add next.
  */
 function KnowledgeGaps() {
@@ -172,7 +172,7 @@ function KnowledgeGaps() {
     <section className="hud-panel" aria-labelledby="gaps-h" data-testid="knowledge-gaps">
       <h2 id="gaps-h" className="text-lg font-bold">Questions our NASA data does not cover yet</h2>
       <p className="text-sm text-ink-3">
-        When Evexia AI cannot answer from the sources on this page, it says so, gives labelled general advice at most, and adds the question here so the ground team knows which source to add next.
+        When Evexia SI cannot answer from the sources on this page, it says so, gives labelled general advice at most, and adds the question here so the ground team knows which source to add next.
       </p>
       {error ? (
         <p className="mt-2 text-sm text-warn-fg">The list is unavailable while the ground link is down.</p>

@@ -161,7 +161,7 @@ test.describe('Console', () => {
 
   test('8. history: weekly trends with bands and range selector', async ({ page }) => {
     await page.goto('/history');
-    for (const id of ['score', 'hr', 'bp', 'glucose', 'temp', 'sleep', 'radiation']) await expect(page.getByTestId(`trend-${id}`)).toBeVisible();
+    for (const id of ['score', 'spo2', 'hr', 'bp', 'glucose', 'temp', 'sleep', 'radiation']) await expect(page.getByTestId(`trend-${id}`)).toBeVisible();
     const twoWeeks = Number(await page.getByTestId('trend-hr').getAttribute('data-points'));
     await page.getByTestId('range-1w').click();
     const oneWeek = Number(await page.getByTestId('trend-hr').getAttribute('data-points'));
@@ -196,7 +196,7 @@ test.describe('Console', () => {
     await expect(page.getByTestId('offline-badge')).toHaveText('Offline guidance mode');
     await expect(page.getByTestId('assistant-messages')).toContainText('Start with heart rate (caution)');
     await page.getByTestId('online-toggle').click();
-    await page.getByLabel('Message Evexia AI').fill('Why is my heart rate amber?');
+    await page.getByLabel('Message Evexia SI').fill('Why is my heart rate amber?');
     await page.getByRole('button', { name: 'Send', exact: true }).click();
     await expect(page.getByTestId('assistant-messages')).toContainText('Resting heart rate is CAUTION');
   });
@@ -226,19 +226,17 @@ test.describe('Console', () => {
     await expect(page.getByTestId('radlab-storm')).toContainText('69.34 µGy/h');
     await expect(page.getByTestId('limits-table')).toContainText('250 mSv');
     await page.goto('/guide');
-    await expect(page.locator('[data-testid^="guide-"]')).toHaveCount(6);
+    await expect(page.locator('[data-testid^="guide-"]')).toHaveCount(7);
     await page.goto('/trends');
     await expect(page.locator('main h1')).toHaveText('Page not found');
     await expect(page.getByText('Demo mode')).toHaveCount(0);
   });
 
-  test('13. simple view (2D) and reduced motion', async ({ page }) => {
-    await page.getByRole('button', { name: 'Simple view' }).click();
-    await expect(page.getByTestId('body-2d')).toBeVisible();
-    await expect(page.getByTestId('body-2d').getByRole('button', { name: /Show details/ })).toHaveCount(6);
-    await page.getByRole('button', { name: '3D view' }).click();
+  test('13. 3D body only (no 2D switch on the Console or in Settings) and reduced motion', async ({ page }) => {
     await expect(page.getByTestId('body-container')).toHaveAttribute('data-view', '3d');
+    await expect(page.getByRole('button', { name: 'Simple view' })).toHaveCount(0);
     await page.goto('/settings');
+    await expect(page.getByTestId('simple-toggle')).toHaveCount(0);
     await page.getByTestId('motion-toggle').click();
     await expect(page.locator('html')).toHaveAttribute('data-reduced-motion', 'true');
   });
@@ -277,7 +275,7 @@ test.describe('Console', () => {
     await page.getByTestId('assistant-open').click();
     await page.getByTestId('photo-input').setInputFiles({ name: 'monitor.png', mimeType: 'image/png', buffer: PHOTO_PNG });
     await expect(page.getByTestId('photo-preview')).toBeVisible();
-    await page.getByLabel('Message Evexia AI').fill('Log this, and I have a red patch on my arm');
+    await page.getByLabel('Message Evexia SI').fill('Log this, and I have a red patch on my arm');
     await page.getByRole('button', { name: 'Send', exact: true }).click();
     await expect(page.getByTestId('ai-badge')).toBeVisible();
     // The photo was resized to JPEG in the browser and sent with the message.
@@ -309,7 +307,7 @@ test.describe('Console', () => {
     await expect(dialog).toBeHidden();
 
     // The follow-up message carries the earlier turns as history.
-    await page.getByLabel('Message Evexia AI').fill('It started yesterday');
+    await page.getByLabel('Message Evexia SI').fill('It started yesterday');
     await page.getByRole('button', { name: 'Send', exact: true }).click();
     await expect.poll(() => sent.length).toBe(2);
     expect(sent[1].history.map((m) => m.role)).toEqual(['user', 'assistant']);
@@ -320,7 +318,7 @@ test.describe('Console', () => {
   test('17. safety screen: danger signs lead to emergency mode, even offline; photos need Claude', async ({ page }) => {
     await page.getByTestId('assistant-open').click();
     await page.getByTestId('online-toggle').click();
-    await page.getByLabel('Message Evexia AI').fill('I have chest pain');
+    await page.getByLabel('Message Evexia SI').fill('I have chest pain');
     await page.getByRole('button', { name: 'Send', exact: true }).click();
     const alert = page.getByTestId('assistant-emergency');
     await expect(alert).toContainText('Possible danger sign: chest pain or pressure');
