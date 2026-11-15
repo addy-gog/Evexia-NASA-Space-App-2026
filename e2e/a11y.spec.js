@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect, logReadings, signIn, signOut, GREEN } from './fixtures.js';
+import { test, expect, logReadings, signIn, signOut, mockClaude, GREEN } from './fixtures.js';
 
 const ASTRONAUT_PAGES = [
   ['Console', '/'],
@@ -69,6 +69,18 @@ test.describe('Accessibility (axe): zero serious or critical violations', () => 
     await page.getByTestId('assistant-open').click();
     await page.getByRole('button', { name: 'Why does the delay matter?' }).click();
     await expect(page.getByTestId('offline-badge')).toBeVisible();
+    expect(await seriousViolations(page)).toEqual([]);
+  });
+
+  test('AI assistant with Claude cards, expanded, and an emergency banner', async ({ page }) => {
+    await signIn(page, 'okafor');
+    await mockClaude(page);
+    await page.getByTestId('assistant-open').click();
+    await page.getByLabel('Message Evexia AI').fill('I have chest pain and a red patch');
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(page.getByTestId('action-report')).toBeVisible();
+    await expect(page.getByTestId('assistant-emergency')).toBeVisible();
+    await page.getByTestId('assistant-expand').click();
     expect(await seriousViolations(page)).toEqual([]);
   });
 

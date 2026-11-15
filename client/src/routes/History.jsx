@@ -35,6 +35,39 @@ function toCsv(logs, ctx) {
   return [cols.join(','), ...rows].join('\n');
 }
 
+/** Symptom notes the astronaut saved from Evexia AI, newest first. */
+function SymptomNotes() {
+  const notes = useHealthStore((s) => s.symptomNotes);
+  const setNoteStatus = useHealthStore((s) => s.setSymptomNoteStatus);
+  if (!notes.length) return null;
+  return (
+    <section className="hud-panel" aria-labelledby="notes-h" data-testid="symptom-notes">
+      <h2 id="notes-h" className="text-lg font-bold">Symptom notes</h2>
+      <p className="text-sm text-ink-3">Saved from Evexia AI after you confirmed them. Descriptions only, not diagnoses.</p>
+      <ul className="mt-2 flex flex-col">
+        {notes.map((n) => (
+          <li key={n.id} className="flex flex-wrap items-start gap-x-4 gap-y-1 border-b border-line/60 py-2.5 text-sm last:border-0">
+            <span className="num w-[132px] flex-none text-ink-3">{formatDate(n.ts)} {formatTime(n.ts)}</span>
+            <span className="min-w-[220px] flex-1">
+              <span className="block font-semibold">{n.summary}</span>
+              {n.details && <span className="block whitespace-pre-wrap text-ink-2">{n.details}</span>}
+              {n.recheckAt && (
+                <span className="block text-xs text-ink-3">
+                  {n.status === 'done' ? 'Rechecked' : `Recheck ${formatDate(n.recheckAt)} ${formatTime(n.recheckAt)}`}
+                </span>
+              )}
+            </span>
+            <button type="button" className="btn-ghost min-h-touch px-3 text-xs" onClick={() => setNoteStatus(n.id, n.status === 'done' ? 'open' : 'done')}>
+              {n.status === 'done' ? 'Reopen' : 'Mark done'}
+              <span className="sr-only">: {n.summary}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default function History() {
   const crewLogs = useHealthStore((s) => s.crewLogs);
   const ctx = useHealthStore((s) => s.ctx);
@@ -156,6 +189,8 @@ export default function History() {
           </section>
         </>
       )}
+
+      <SymptomNotes />
 
       <section className="hud-panel" aria-labelledby="log-h">
         <div className="flex flex-wrap items-center gap-3">

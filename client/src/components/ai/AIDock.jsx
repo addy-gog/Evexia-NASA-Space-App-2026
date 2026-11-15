@@ -1,20 +1,46 @@
 /**
  * AI dock (bottom-right) with the 3D companion, and the assistant panel.
- * Online: Claude through the server. Offline (toggle, no key, or no link):
- * the rule-based engine. The dock is one real <button> with aria-expanded; the
- * canvas is decorative and its information is repeated in the dock text.
+ * Online: Claude through the server, with photos, dictation and read-aloud.
+ * Offline (toggle, no key, or no link): the rule-based engine; photos need Claude.
+ * Every message passes the danger-sign screen first, online or offline.
+ * The dock is one real <button> with aria-expanded; the canvas is decorative
+ * and its information is repeated in the dock text.
  */
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useHealthStore, usePrefersReducedMotion } from '../../store/useHealthStore.js';
-import { api } from '../../lib/api.js';
+import { api, newId } from '../../lib/api.js';
 import { ruleBasedAnswer, summaryMessage } from '../../lib/ruleAssistant.js';
 import { sleepHistoryBefore } from '../../lib/evaluate.js';
+import { screenDangerSigns, EMERGENCY_LINE } from '../../lib/safety.js';
+import { preparePhoto, useDictation, useSpeaker } from '../../lib/media.js';
 import { ENVIRONMENTS, INDICATORS } from '../../config/thresholds.js';
 import { SEVERITY_META } from '../Status.jsx';
 import CompanionStill from './CompanionStill.jsx';
+import ActionCard from './ActionCard.jsx';
+import EscalationDialog from '../EscalationDialog.jsx';
 
 const Companion = lazy(() => import('./Companion.jsx'));
 const CHIPS = ['What should I do first?', 'Why does the delay matter?', 'Draft a report'];
+const HISTORY_SENT = 8;
+
+function Icon({ d, size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {d.map((p) => <path key={p} d={p} />)}
+    </svg>
+  );
+}
+const ICONS = {
+  camera: ['M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', 'M12 16.5a3.5 3.5 0 1 0 0-7a3.5 3.5 0 1 0 0 7z'],
+  mic: ['M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z', 'M19 11a7 7 0 0 1-14 0', 'M12 18v3'],
+  stop: ['M7 7h10v10H7z'],
+  speaker: ['M11 5L6 9H3v6h3l5 4z', 'M15.5 8.5a5 5 0 0 1 0 7', 'M18.5 5.5a9 9 0 0 1 0 13'],
+  expand: ['M15 3h6v6', 'M9 21H3v-6', 'M21 3l-7 7', 'M3 21l7-7'],
+  shrink: ['M4 14h6v6', 'M20 10h-6V4', 'M14 10l7-7', 'M3 21l7-7'],
+  close: ['M6 6l12 12', 'M18 6L6 18'],
+  send: ['M5 12h14', 'M13 6l6 6-6 6'],
+};
 
 function useWorst(status) {
   const sevs = INDICATORS.map((m) => status.results[m.id]?.severity).filter(Boolean);
@@ -23,6 +49,9 @@ function useWorst(status) {
   return { worst, flagged };
 }
 
+/** Text sent back to the server as conversation history (no photo data, just a marker). */
+const historyOf = (msgs) => msgs.slice(-HISTORY_SENT).map((m) => ({ role: m.role, text: m.photo ? `${m.text} [photo attached]`.trim() : m.text }));
+
 export default function AIDock() {
   const status = useHealthStore((s) => s.status);
   const environment = useHealthStore((s) => s.environment);
@@ -30,14 +59,21 @@ export default function AIDock() {
   const profile = useHealthStore((s) => s.profile);
   const reduced = usePrefersReducedMotion();
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [hover, setHover] = useState(false);
   const [offline, setOffline] = useState(false);
   const [fallback, setFallback] = useState(false); // server answered with offline guidance
   const [busy, setBusy] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState(null);
+  const [photo, setPhoto] = useState(null); // { mediaType, data, previewUrl }
+  const [notice, setNotice] = useState('');
+  const [report, setReport] = useState(null); // proposal being reviewed in the escalation dialog
   const listRef = useRef(null);
   const inputRef = useRef(null);
+  const fileRef = useRef(null);
+  const dictation = useDictation(setInput);
+  const speaker = useSpeaker();
   const { worst, flagged } = useWorst(status);
   const compStatus = { green: 'ok', amber: 'warn', red: 'crit' }[worst];
   const envLabel = ENVIRONMENTS[environment].label;
@@ -45,73 +81,123 @@ export default function AIDock() {
     () => ({ results: status.results, delaySeconds, environmentLabel: envLabel, score: status.score.score, tier: status.score.band?.label ?? '', missionDay: status.missionDay, crewName: profile?.name }),
     [status, delaySeconds, envLabel, profile],
   );
-  const shown = messages ?? [{ role: 'assistant', text: summaryMessage(ruleCtx) }];
+  const shown = messages ?? [{ id: 'summary', role: 'assistant', text: summaryMessage(ruleCtx) }];
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
+    else speaker.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [shown.length, busy]);
 
+  /** Offline answer, with the same safety lines the server adds. */
+  const offlineText = (q, hasPhoto, signs) => {
+    const parts = [];
+    if (signs.length) parts.push(`Possible danger sign: ${signs.map((s) => s.label).join(', ')}. ${EMERGENCY_LINE}`);
+    if (hasPhoto) parts.push('Offline guidance cannot look at photos. Type the numbers from the screen in Log Readings, or describe what you see in words.');
+    parts.push(ruleBasedAnswer(q, ruleCtx));
+    return parts.join('\n\n');
+  };
+
   const ask = async (question) => {
     const q = question.trim();
-    if (!q || busy) return;
+    if ((!q && !photo) || busy) return;
+    if (dictation.listening) dictation.stop();
     const base = shown;
-    setMessages([...base, { role: 'user', text: q }]);
+    const sentPhoto = photo;
+    const userMsg = { id: newId(), role: 'user', text: q, photo: sentPhoto?.previewUrl };
+    setMessages([...base, userMsg]);
     setInput('');
+    setPhoto(null);
+    setNotice('');
     setBusy(true);
+    const signs = screenDangerSigns(q);
     const s = useHealthStore.getState();
     let reply;
     if (offline) {
       await new Promise((r) => setTimeout(r, 350));
-      reply = { text: ruleBasedAnswer(q, ruleCtx), mode: 'offline' };
+      reply = { text: offlineText(q, Boolean(sentPhoto), signs), mode: 'offline' };
     } else {
       try {
-        const res = await api.assistant(q, {
-          environment: s.environment,
-          delaySeconds: s.delaySeconds,
-          reading: s.status.reading,
-          sleepHistory: s.status.snapshot.sleep ? sleepHistoryBefore(s.crewLogs, s.status.snapshot.sleep.ts) : [],
-          missionDay: s.status.missionDay,
-          baselineMode: s.baselineMode,
-          baseline: s.baseline,
-        });
+        const res = await api.assistant(
+          q,
+          {
+            environment: s.environment,
+            delaySeconds: s.delaySeconds,
+            reading: s.status.reading,
+            sleepHistory: s.status.snapshot.sleep ? sleepHistoryBefore(s.crewLogs, s.status.snapshot.sleep.ts) : [],
+            missionDay: s.status.missionDay,
+            baselineMode: s.baselineMode,
+            baseline: s.baseline,
+          },
+          { image: sentPhoto, history: historyOf(base.filter((m) => m.id !== 'summary')) },
+        );
         // The server's offline answer covers single readings; chip intents use the richer local engine.
-        reply = res.mode === 'ai' ? { text: res.answer, mode: 'ai' } : { text: ruleBasedAnswer(q, ruleCtx), mode: 'offline' };
-      } catch {
-        reply = { text: ruleBasedAnswer(q, ruleCtx), mode: 'offline' };
+        reply = res.mode === 'ai'
+          ? { text: res.answer, mode: 'ai', actions: res.actions ?? [], gap: res.gapRecorded }
+          : { text: offlineText(q, Boolean(sentPhoto), signs), mode: 'offline' };
+      } catch (err) {
+        const tooBig = err.status === 413;
+        reply = { text: tooBig ? 'That photo is too large to send. Try a closer, simpler shot.' : offlineText(q, Boolean(sentPhoto), signs), mode: 'offline' };
       }
     }
     setFallback(reply.mode === 'offline');
-    setMessages([...base, { role: 'user', text: q }, { role: 'assistant', text: reply.text, mode: reply.mode }]);
+    setMessages([...base, userMsg, { id: newId(), role: 'assistant', ...reply, emergency: signs }]);
     setBusy(false);
+  };
+
+  const pickPhoto = () => {
+    if (offline) {
+      setNotice('Photos need Claude. Tap "Go online" to send one, or type the numbers instead.');
+      return;
+    }
+    fileRef.current?.click();
+  };
+  const onFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setPhoto(await preparePhoto(file));
+      setNotice('');
+      inputRef.current?.focus();
+    } catch (err) {
+      setNotice(err.message);
+    }
   };
 
   // Starts with the visible text ("Ask Evexia AI" + status line) so voice-control users can say what they see; aria-expanded gives open/closed.
   const statusLine = open ? 'Tap to minimise' : flagged ? `${flagged} item${flagged > 1 ? 's' : ''} to review` : 'All nominal · ask anything';
   const aria = `Ask Evexia AI, ${statusLine}`;
   const modeText = offline ? 'Offline · rule-based fallback' : fallback ? 'Online · rule-based (no Claude key)' : 'Online · powered by Claude';
+  const size = expanded ? 'sm:h-[min(820px,calc(100vh-156px))] sm:w-[min(680px,calc(100vw-48px))]' : 'sm:h-[min(600px,72vh)] sm:w-[380px]';
+  const iconBtn = 'btn-ghost h-12 w-12 flex-none p-0';
 
   return (
     <>
       {open && (
         <aside
           id="assistant-panel"
-          className="rise fixed inset-0 z-50 flex flex-col bg-bg sm:inset-auto sm:bottom-[132px] sm:right-6 sm:h-[min(600px,72vh)] sm:w-[380px] sm:rounded-card sm:border sm:border-line sm:bg-surface sm:shadow-panel"
+          className={`rise fixed inset-0 z-50 flex flex-col bg-bg sm:inset-auto sm:bottom-[132px] sm:right-6 sm:rounded-card sm:border sm:border-line sm:bg-surface sm:shadow-panel ${size}`}
           aria-label="Evexia AI assistant"
           data-testid="assistant-panel"
+          data-expanded={expanded}
         >
-          <header className="flex items-center gap-2 border-b border-line px-4 py-3">
+          <header className="flex items-center gap-1.5 border-b border-line px-4 py-3">
             <div className="min-w-0 flex-1">
               <h2 className="whitespace-nowrap font-display text-lg font-bold">Evexia AI</h2>
-              <p className={`truncate text-xs font-semibold ${busy ? 'text-accent' : 'text-ink-3'}`}>{busy ? 'Thinking…' : modeText}</p>
+              <p className={`truncate text-xs font-semibold ${busy ? 'text-accent' : 'text-ink-3'}`}>{busy ? (photo || shown.at(-1)?.photo ? 'Looking at the photo…' : 'Thinking…') : modeText}</p>
             </div>
             <button type="button" className="btn-ghost min-h-touch px-3 text-xs" aria-pressed={offline} onClick={() => setOffline(!offline)} data-testid="online-toggle">
               {offline ? 'Go online' : 'Use offline'}
             </button>
+            <button type="button" className="btn-ghost hidden h-11 w-11 p-0 sm:flex" onClick={() => setExpanded(!expanded)} aria-pressed={expanded} aria-label={expanded ? 'Make the assistant smaller' : 'Make the assistant larger'} data-testid="assistant-expand">
+              <Icon d={expanded ? ICONS.shrink : ICONS.expand} size={18} />
+            </button>
             <button type="button" className="btn-ghost h-11 w-11 p-0" onClick={() => setOpen(false)} aria-label="Close assistant">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+              <Icon d={ICONS.close} size={18} />
             </button>
           </header>
           {(offline || fallback || messages?.some((m) => m.mode === 'ai')) && (
@@ -132,15 +218,37 @@ export default function AIDock() {
             )}
           </div>
           <div ref={listRef} className="flex flex-1 flex-col gap-2.5 overflow-y-auto px-4 py-3" aria-live="polite" data-testid="assistant-messages" tabIndex={0}>
-            {shown.map((m, i) => (
-              <div
-                key={i}
-                className={`max-w-[88%] whitespace-pre-wrap px-3.5 py-2.5 text-sm ${m.role === 'user' ? 'self-end rounded-[16px_16px_4px_16px] bg-accent text-white' : 'self-start rounded-[16px_16px_16px_4px] border border-[#E6EAF0] bg-surface'}`}
-                data-role={m.role}
-              >
-                {m.text}
-              </div>
-            ))}
+            {shown.map((m) =>
+              m.role === 'user' ? (
+                <div key={m.id} className="flex max-w-[88%] flex-col items-end gap-1.5 self-end" data-role="user">
+                  {m.photo && <img src={m.photo} alt="Photo you sent" className="max-h-40 rounded-tile border border-line object-cover" />}
+                  {m.text && <div className="whitespace-pre-wrap rounded-[16px_16px_4px_16px] bg-accent px-3.5 py-2.5 text-sm text-white">{m.text}</div>}
+                </div>
+              ) : (
+                <div key={m.id} className={`self-start ${expanded ? 'max-w-[80%]' : 'max-w-[92%]'}`} data-role="assistant">
+                  {m.emergency?.length > 0 && (
+                    <div className="mb-2 rounded-tile border border-crit-line bg-crit-bg p-3 text-sm" role="alert" data-testid="assistant-emergency">
+                      <p><strong className="text-crit-fg">Possible danger sign: {m.emergency.map((e) => e.label).join(', ')}.</strong> {EMERGENCY_LINE}</p>
+                      <Link to="/emergency" className="btn-danger mt-2 min-h-touch px-3.5 text-sm" onClick={() => setOpen(false)}>Open emergency mode</Link>
+                    </div>
+                  )}
+                  <div className="whitespace-pre-wrap rounded-[16px_16px_16px_4px] border border-[#E6EAF0] bg-surface px-3.5 py-2.5 text-sm">{m.text}</div>
+                  {m.actions?.map((a) => <ActionCard key={a.type} action={a} onOpenReport={setReport} />)}
+                  {m.gap && <p className="mt-1.5 text-xs text-ink-3" data-testid="gap-recorded">Added to the list of questions Evexia&apos;s NASA data does not cover yet.</p>}
+                  {speaker.supported && (
+                    <button
+                      type="button"
+                      className="mt-1 inline-flex min-h-touch items-center gap-1.5 rounded-input px-2 text-xs font-semibold text-ink-3 hover:bg-surface-2 hover:text-ink"
+                      onClick={() => (speaker.speakingId === m.id ? speaker.stop() : speaker.speak(m.id, m.text))}
+                      aria-pressed={speaker.speakingId === m.id}
+                    >
+                      <Icon d={speaker.speakingId === m.id ? ICONS.stop : ICONS.speaker} size={16} />
+                      {speaker.speakingId === m.id ? 'Stop reading' : 'Read aloud'}
+                    </button>
+                  )}
+                </div>
+              ),
+            )}
             {busy && (
               <div className="flex gap-1.5 self-start rounded-[16px_16px_16px_4px] border border-[#E6EAF0] bg-surface px-4 py-3.5" aria-label="Evexia AI is typing">
                 <span className="dot1 block h-[7px] w-[7px] rounded-full bg-accent" />
@@ -155,7 +263,20 @@ export default function AIDock() {
                 {q}
               </button>
             ))}
+            <button type="button" disabled={busy} onClick={pickPhoto} className="min-h-touch flex-none rounded-full border border-[#C9D1DC] bg-surface px-3.5 text-[13px] font-semibold text-accent hover:bg-accent-soft">
+              Read a device screen
+            </button>
           </div>
+          {photo && (
+            <div className="flex items-center gap-3 border-t border-line bg-surface px-4 pt-2" data-testid="photo-preview">
+              <img src={photo.previewUrl} alt="Photo ready to send" className="h-14 w-14 flex-none rounded-tile border border-line object-cover" />
+              <p className="min-w-0 flex-1 text-xs text-ink-3">Sent to Claude with your message. Not stored on the server.</p>
+              <button type="button" className="btn-ghost min-h-touch px-3 text-xs" onClick={() => setPhoto(null)}>Remove photo</button>
+            </div>
+          )}
+          {(notice || dictation.error) && (
+            <p className="bg-surface px-4 pt-2 text-xs font-semibold text-warn-fg" role="status" data-testid="assistant-notice">{notice || dictation.error}</p>
+          )}
           <form
             className="flex gap-2 border-t border-line bg-surface px-4 pb-6 pt-2 sm:rounded-b-card sm:pb-3"
             onSubmit={(e) => {
@@ -163,14 +284,48 @@ export default function AIDock() {
               ask(input);
             }}
           >
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} data-testid="photo-input" tabIndex={-1} aria-hidden="true" />
+            <button type="button" className={`${iconBtn} ${offline ? 'opacity-60' : ''}`} onClick={pickPhoto} disabled={busy} aria-label={offline ? 'Add a photo (needs Claude, go online first)' : 'Add a photo'} data-testid="photo-button">
+              <Icon d={ICONS.camera} />
+            </button>
+            {dictation.supported && (
+              <button
+                type="button"
+                className={`${iconBtn} ${dictation.listening ? 'bg-crit-bg text-crit-fg' : ''}`}
+                onClick={() => (dictation.listening ? dictation.stop() : dictation.start(input))}
+                disabled={busy}
+                aria-pressed={dictation.listening}
+                aria-label={dictation.listening ? 'Stop dictation' : 'Dictate a message'}
+                data-testid="mic-button"
+              >
+                <Icon d={dictation.listening ? ICONS.stop : ICONS.mic} />
+              </button>
+            )}
             <label htmlFor="assistant-input" className="sr-only">Message Evexia AI</label>
-            <input id="assistant-input" ref={inputRef} value={input} maxLength={1000} onChange={(e) => setInput(e.target.value)} placeholder="Ask about a reading…" className="h-12 min-w-0 flex-1 rounded-tile border border-[#C9D1DC] bg-surface px-3.5 text-[15px]" />
-            <button type="submit" disabled={busy || !input.trim()} aria-label="Send" className="btn-primary h-12 w-12 p-0">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            <input
+              id="assistant-input"
+              ref={inputRef}
+              value={input}
+              maxLength={1000}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={dictation.listening ? 'Listening…' : photo ? 'Add a question (optional)' : 'Ask about a reading…'}
+              className="h-12 min-w-0 flex-1 rounded-tile border border-[#C9D1DC] bg-surface px-3.5 text-[15px]"
+            />
+            <button type="submit" disabled={busy || (!input.trim() && !photo)} aria-label="Send" className="btn-primary h-12 w-12 flex-none p-0">
+              <Icon d={ICONS.send} />
             </button>
           </form>
           <p className="bg-surface px-4 pb-3 text-[11px] text-ink-3 sm:rounded-b-card">Decision support only. Not a diagnosis.</p>
         </aside>
+      )}
+
+      {report && (
+        <EscalationDialog
+          focusId={null}
+          priority={report.priority}
+          presetNote={report.note}
+          onClose={() => setReport(null)}
+        />
       )}
 
       <button

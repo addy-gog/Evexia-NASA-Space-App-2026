@@ -73,4 +73,35 @@ export async function logReadings(page, values, { spe = false, notes = '' } = {}
 }
 
 // Radiation is absorbed dose in mGy/day (0.4 ≈ 1.5 mSv/day in Mars transit: nominal).
-export const GREEN = { hr: 70, sys: 118, dia: 76, glucose: 90, temp: 36.8, sleep: 7.5, radiation: 0.4 };
+/** A 1x1 PNG, used as the "photo" in assistant tests. */
+export const PHOTO_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+
+/**
+ * Replace the Claude call with a canned answer that proposes all three cards,
+ * so the confirm flow can be tested without a key or any cost. Returns the
+ * request bodies the page sent.
+ */
+export async function mockClaude(page) {
+  const sent = [];
+  await page.route('**/api/assistant', async (route) => {
+    sent.push(route.request().postDataJSON());
+    await route.fulfill({
+      json: {
+        mode: 'ai',
+        model: 'claude-sonnet-5-5',
+        answer: "I read 128/82 and pulse 74 from the screen.\n\nEvexia's NASA data does not cover skin problems.\n\nNot a diagnosis. Your crew medical officer decides.",
+        toolsUsed: ['propose_readings', 'record_knowledge_gap', 'propose_symptom_note', 'propose_report'],
+        actions: [
+          { type: 'readings', device: 'blood_pressure_monitor', values: { hr: 74, sys: 128, dia: 82 }, unreadable: '', rejected: [], converted: { glucose: false, temp: false } },
+          { type: 'symptom_note', summary: 'Red itchy patch, left forearm', details: 'Since yesterday.', recheckHours: 6 },
+          { type: 'report', priority: 'routine', note: 'Red itchy patch on the left forearm since yesterday.' },
+        ],
+        emergency: [],
+        gapRecorded: true,
+      },
+    });
+  });
+  return sent;
+}
+
+export const GREEN ={ hr: 70, sys: 118, dia: 76, glucose: 90, temp: 36.8, sleep: 7.5, radiation: 0.4 };

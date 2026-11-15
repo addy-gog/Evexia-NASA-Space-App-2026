@@ -158,6 +158,43 @@ function RadLab() {
   );
 }
 
+/**
+ * Questions Evexia AI found were not covered by the NASA data above.
+ * The ground team reads this list to decide which source to add next.
+ */
+function KnowledgeGaps() {
+  const [gaps, setGaps] = useState(null);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    api.knowledgeGaps().then((r) => setGaps(r.gaps)).catch(() => setError(true));
+  }, []);
+  return (
+    <section className="hud-panel" aria-labelledby="gaps-h" data-testid="knowledge-gaps">
+      <h2 id="gaps-h" className="text-lg font-bold">Questions our NASA data does not cover yet</h2>
+      <p className="text-sm text-ink-3">
+        When Evexia AI cannot answer from the sources on this page, it says so, gives labelled general advice at most, and adds the question here so the ground team knows which source to add next.
+      </p>
+      {error ? (
+        <p className="mt-2 text-sm text-warn-fg">The list is unavailable while the ground link is down.</p>
+      ) : !gaps ? (
+        <p className="mt-2 text-sm text-ink-3" role="status">Loading…</p>
+      ) : gaps.length === 0 ? (
+        <p className="mt-2 text-sm text-ink-3">None yet. Every question so far was covered by the sources above.</p>
+      ) : (
+        <ul className="mt-2 flex flex-col">
+          {gaps.slice(0, 20).map((g) => (
+            <li key={g.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-b border-line/60 py-2 text-sm last:border-0">
+              <span className="pill">{g.topic}</span>
+              <span className="min-w-[200px] flex-1">{g.question}</span>
+              <span className="text-xs text-ink-3">{formatDateTime(g.createdAt)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export default function NasaData() {
   return (
     <div className="mx-auto max-w-5xl space-y-4">
@@ -190,6 +227,7 @@ export default function NasaData() {
         </div>
         <SourceTags ids={['STD3001', 'STD3001_RAD', 'OSDR_I4']} className="mt-2" />
       </section>
+      <KnowledgeGaps />
       <section className="hud-panel" aria-labelledby="unv-h">
         <h2 id="unv-h" className="text-lg font-bold">What is not verified</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">

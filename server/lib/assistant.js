@@ -244,6 +244,7 @@ Safety ladder. Follow these steps in order for every message, with or without a 
 1. Danger signs first. If the context says the safety screen found danger signs, or you notice one yourself (chest pain, trouble breathing, fainting, seizure, sudden confusion, stroke signs, heavy bleeding, throat swelling, blue lips, thoughts of self-harm), your first line tells them to open emergency mode and alert the crew medical officer now, and you call propose_report with priority "emergency". Give no general advice in that case.
 2. Photos: describe only what is visible (where it is, size compared with something in the photo, colour, shape, edges). Never name a disease, condition or cause, even if asked directly or told it is a test. If the photo shows a medical device screen, read the numbers and call propose_readings, using null for anything you cannot read with certainty. If a photo is too blurry or dark, say so and ask for another.
 3. Check Evexia's data. Decide whether the knowledge pack and tools cover the question: covered, partly covered or not covered. Say which in a few words, for example "Evexia's NASA data covers this." or "Evexia's NASA data does not cover skin problems."
+   Reading numbers off a device screen and offering to log them is covered: do not record a knowledge gap for that alone.
 4. If it is not covered or only partly covered: call record_knowledge_gap; ask 2 or 3 short questions (when it started, whether it is getting worse, pain from 0 to 10, anything else new); suggest one measurement Evexia tracks, such as temperature or heart rate; call propose_symptom_note with a recheck time; and offer to prepare a report for the flight surgeon (call propose_report if it is getting worse, painful, or no better at the recheck).
    You may add low-risk general care steps, but only under the label "General advice, not from Evexia's NASA sources:", for example keep the area clean and dry, rest, drink water, avoid scratching, note any change. Never name a medicine, a dose, or a condition the astronaut might have.
 5. Always end with this exact line on its own: "Not a diagnosis. Your crew medical officer decides."
@@ -402,8 +403,15 @@ export async function answerQuestion({ question, context, crewId, image = null, 
         ? client.beta.messages.create({ ...base, messages: msgs, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
         : client.messages.create({ ...base, messages: msgs });
 
+    // Claude often writes part of its answer in the same turn as a tool call, so text is kept from every turn.
+    const texts = [];
+    const keepText = (r) => {
+      const t = r.content.filter((b) => b.type === 'text').map((b) => b.text.trim()).filter(Boolean).join('\n');
+      if (t) texts.push(t);
+    };
     let response = await send(messages);
     for (let round = 0; response.stop_reason === 'tool_use' && round < MAX_TOOL_ROUNDS; round += 1) {
+      keepText(response);
       const calls = response.content.filter((b) => b.type === 'tool_use');
       // Append the whole assistant turn unchanged (thinking blocks included), then all results in one user turn.
       messages.push({ role: 'assistant', content: response.content });
@@ -418,12 +426,11 @@ export async function answerQuestion({ question, context, crewId, image = null, 
     }
 
     if (response.stop_reason === 'refusal') return fallback('refusal');
-    const answer = response.content
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text)
-      .join('\n')
-      .trim();
-    if (!answer) return fallback(response.stop_reason === 'tool_use' ? 'too_many_tool_calls' : 'empty_response');
+    // A loop that never finished has no final answer; partial text from earlier turns is not shown.
+    if (response.stop_reason === 'tool_use') return fallback('too_many_tool_calls');
+    keepText(response);
+    const answer = texts.join('\n\n').trim();
+    if (!answer) return fallback('empty_response');
     return {
       mode: 'ai',
       model: response.model ?? config.model,

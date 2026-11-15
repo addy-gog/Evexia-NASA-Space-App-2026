@@ -428,6 +428,15 @@ describe('assistant', () => {
     expect(JSON.parse(create.mock.calls[1][0].messages[2].content[0].content).instruction).toMatch(/Nothing is saved/);
     expect(repo.readingsSince('c1', new Date(0).toISOString()).length).toBe(before);
   });
+  it('text Claude writes alongside a tool call is kept, not just the last turn', async () => {
+    const create = vi
+      .fn()
+      .mockResolvedValueOnce({ stop_reason: 'tool_use', content: [{ type: 'text', text: 'I read 128/82 and pulse 74.' }, { type: 'tool_use', id: 'p0', name: 'propose_readings', input: { device: 'blood_pressure_monitor', hr: 74, sys: 128, dia: 82, glucose: null, glucose_unit: 'none', temp: null, temp_unit: 'none', unreadable: '' } }] })
+      .mockResolvedValueOnce({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'Not a diagnosis. Your crew medical officer decides.' }] });
+    const res = await (await signIn(withClient(create), 'okafor')).post('/api/assistant').send({ question: 'log this', context, image: { mediaType: 'image/png', data: PNG_1PX } });
+    expect(res.body.answer).toBe('I read 128/82 and pulse 74.\n\nNot a diagnosis. Your crew medical officer decides.');
+    expect(res.body.actions[0].values).toEqual({ hr: 74, sys: 128, dia: 82 });
+  });
   it('unreadable device photo: no card, and Claude is told to ask for typed numbers', async () => {
     const create = twoStep([{ name: 'propose_readings', input: { device: 'other', hr: null, sys: null, dia: null, glucose: null, glucose_unit: 'none', temp: null, temp_unit: 'none', unreadable: 'all of it' } }]);
     const res = await (await signIn(withClient(create), 'okafor')).post('/api/assistant').send({ question: 'log this', context, image: { mediaType: 'image/png', data: PNG_1PX } });

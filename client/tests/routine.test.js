@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkInStreak, dueToday, isCheckIn, readingsIn } from '../src/lib/routine.js';
+import { checkInStreak, dueToday, isCheckIn, openRechecks, readingsIn } from '../src/lib/routine.js';
 
 // Local noon on a fixed day, so day boundaries do not depend on the test machine's time of day.
 const NOW = new Date(2026, 10, 15, 12, 0, 0).getTime();
@@ -76,5 +76,21 @@ describe('dueToday', () => {
     const due = dueToday({}, NOW);
     expect(due).toHaveLength(6);
     expect(due.every((d) => d.overdue)).toBe(true);
+  });
+});
+
+describe('openRechecks', () => {
+  const inHours = (h) => new Date(NOW + h * 3_600_000).toISOString();
+  it('lists open notes with a recheck time, soonest first, and marks the ones that are due', () => {
+    const notes = [
+      { id: 'later', summary: 'b', recheckAt: inHours(3), status: 'open' },
+      { id: 'past', summary: 'a', recheckAt: inHours(-1), status: 'open' },
+      { id: 'closed', summary: 'c', recheckAt: inHours(-2), status: 'done' },
+      { id: 'none', summary: 'd', recheckAt: null, status: 'open' },
+    ];
+    expect(openRechecks(notes, NOW).map((n) => [n.id, n.due])).toEqual([['past', true], ['later', false]]);
+  });
+  it('handles no notes', () => {
+    expect(openRechecks(undefined, NOW)).toEqual([]);
   });
 });

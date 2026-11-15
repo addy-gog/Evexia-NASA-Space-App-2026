@@ -77,6 +77,8 @@ const initial = {
   apiOnline: null,
   loading: false,
   telemetry: { samples: [], devices: [], stream: 'disconnected', lastSyncAt: null },
+  // Symptom notes saved from the assistant (with a recheck time). Server is the source of truth.
+  symptomNotes: [],
   focusNonce: 0,
   toast: null,
   clock: Date.now(),
@@ -107,6 +109,7 @@ export const useHealthStore = create(
           if (user?.role === 'astronaut' && user.crewId) {
             if (get().crewId !== user.crewId) update({ crewId: user.crewId, telemetry: { ...get().telemetry, samples: [], devices: [] } });
             get().loadLogs();
+            get().loadSymptomNotes();
           }
         },
         login: async (username, password) => {
@@ -125,11 +128,12 @@ export const useHealthStore = create(
         },
         logout: async () => {
           await api.logout().catch(() => {});
-          update({ user: null, profile: null, logs: [], telemetry: { samples: [], devices: [], stream: 'disconnected', lastSyncAt: null } });
+          update({ user: null, profile: null, logs: [], symptomNotes: [], telemetry: { samples: [], devices: [], stream: 'disconnected', lastSyncAt: null } });
         },
         setCrew: (crewId) => {
-          update({ crewId, telemetry: { ...get().telemetry, samples: [], devices: [] } });
+          update({ crewId, symptomNotes: [], telemetry: { ...get().telemetry, samples: [], devices: [] } });
           get().loadLogs();
+          get().loadSymptomNotes();
         },
         setEnvironment: (environment) => {
           if (!ENVIRONMENTS[environment]) return;
@@ -199,6 +203,33 @@ export const useHealthStore = create(
           } catch (err) {
             if (err.status === 401) set({ user: null, loading: false });
             else set({ apiOnline: false, loading: false });
+          }
+        },
+
+        // ---------- Symptom notes ----------
+        loadSymptomNotes: async () => {
+          const crewId = get().crewId;
+          try {
+            const res = await api.symptomNotes(crewId);
+            if (get().crewId === crewId) set({ symptomNotes: res.notes });
+          } catch {
+            /* offline: keep what we have */
+          }
+        },
+        /** Save a note the astronaut confirmed. Returns the saved note, or throws if the ground rejects it. */
+        addSymptomNote: async ({ summary, details = '', recheckHours = null }) => {
+          const saved = await api.postSymptomNote({ id: newId(), crewId: get().crewId, ts: new Date().toISOString(), summary, details, recheckHours });
+          set({ symptomNotes: [saved, ...get().symptomNotes.filter((n) => n.id !== saved.id)] });
+          return saved;
+        },
+        setSymptomNoteStatus: async (id, status) => {
+          const before = get().symptomNotes;
+          set({ symptomNotes: before.map((n) => (n.id === id ? { ...n, status } : n)) });
+          try {
+            await api.patchSymptomNote(id, { status });
+          } catch {
+            set({ symptomNotes: before });
+            get().showToast('Could not update the note. Check the ground link and try again.', 'warn');
           }
         },
 

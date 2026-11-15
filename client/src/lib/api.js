@@ -56,7 +56,14 @@ export const api = {
   spaceWeather: (refresh) => request(`/space-weather${refresh ? '?refresh=1' : ''}`, { timeout: 25000 }),
   radlab: () => request('/nasa/radlab', { timeout: 15000 }),
   // Assistant
-  assistant: (question, context) => request('/assistant', { method: 'POST', body: { question, context }, timeout: 30000 }),
+  // A photo makes the call slower (upload + image reading), so it gets a longer timeout.
+  assistant: (question, context, { image, history } = {}) =>
+    request('/assistant', { method: 'POST', body: { question, context, history, image: image ? { mediaType: image.mediaType, data: image.data } : undefined }, timeout: image ? 60000 : 30000 }),
+  // Symptom notes and knowledge gaps
+  symptomNotes: (crewId) => request(`/symptom-notes?${qs({ crewId })}`),
+  postSymptomNote: (n) => request('/symptom-notes', { method: 'POST', body: n }),
+  patchSymptomNote: (id, body) => request(`/symptom-notes/${encodeURIComponent(id)}`, { method: 'PATCH', body }),
+  knowledgeGaps: () => request('/knowledge-gaps'),
 };
 
 export function newId() {

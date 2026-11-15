@@ -62,10 +62,12 @@ export default function EscalationDialog({ focusId, onClose, onSent, priority = 
   );
   const text = reportToText(report);
 
+  // No close() on cleanup: in development React mounts, unmounts and remounts once,
+  // and closing here fired onClose and removed the dialog instantly. A dialog
+  // removed from the page leaves the top layer by itself.
   useEffect(() => {
     const d = dialogRef.current;
     if (d && !d.open) d.showModal();
-    return () => d?.close?.();
   }, []);
 
   const toggle = (a) => setActions((cur) => (cur.includes(a) ? cur.filter((x) => x !== a) : [...cur, a]));

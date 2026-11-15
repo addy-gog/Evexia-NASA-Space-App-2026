@@ -74,3 +74,17 @@ export function dueToday(snapshot = {}, now = Date.now()) {
   });
   return out.sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.order - b.order);
 }
+
+/**
+ * Symptom notes still waiting for a recheck, soonest first.
+ * `due` once the recheck time has passed. Notes marked done, or saved
+ * without a recheck time, are left out.
+ * @param notes  [{ id, summary, recheckAt, status }]
+ */
+export function openRechecks(notes = [], now = Date.now()) {
+  const t = new Date(now).getTime();
+  return notes
+    .filter((n) => n.status !== 'done' && n.recheckAt && !Number.isNaN(new Date(n.recheckAt).getTime()))
+    .map((n) => ({ ...n, due: new Date(n.recheckAt).getTime() <= t }))
+    .sort((a, b) => new Date(a.recheckAt) - new Date(b.recheckAt));
+}

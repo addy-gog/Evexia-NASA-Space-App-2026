@@ -1,4 +1,4 @@
-import { test, expect, logReadings, signIn, signOut, GREEN, INDICATORS } from './fixtures.js';
+import { test, expect, logReadings, signIn, signOut, mockClaude, GREEN, INDICATORS, PHOTO_PNG } from './fixtures.js';
 
 const card = (page, id) => page.getByTestId(`card-${id}`);
 const region = (page, r) => page.getByTestId('body-regions').locator(`li[data-region="${r}"]`);
@@ -265,6 +265,65 @@ test.describe('Console', () => {
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByTestId('value-hr')).toHaveText('72');
+  });
+
+  test('16. AI photo and confirm cards: nothing is saved or sent until the astronaut taps', async ({ page }) => {
+    const sent = await mockClaude(page);
+    await page.getByTestId('assistant-open').click();
+    await page.getByTestId('photo-input').setInputFiles({ name: 'monitor.png', mimeType: 'image/png', buffer: PHOTO_PNG });
+    await expect(page.getByTestId('photo-preview')).toBeVisible();
+    await page.getByLabel('Message Evexia AI').fill('Log this, and I have a red patch on my arm');
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(page.getByTestId('ai-badge')).toBeVisible();
+    // The photo was resized to JPEG in the browser and sent with the message.
+    expect(sent[0].image.mediaType).toBe('image/jpeg');
+    expect(sent[0].image.data.length).toBeGreaterThan(50);
+    await expect(page.getByAltText('Photo you sent')).toBeVisible();
+    await expect(page.getByTestId('gap-recorded')).toBeVisible();
+
+    // Readings card → log entry, only after Save.
+    const readings = page.getByTestId('action-readings');
+    await expect(readings).toContainText('128/82');
+    await page.getByTestId('action-readings-confirm').click();
+    await expect(readings).toHaveAttribute('data-status', 'saved');
+    await expect(card(page, 'bp')).toContainText('128');
+
+    // Symptom note → recheck reminder in Today's routine.
+    await page.getByTestId('action-symptom_note-confirm').click();
+    await expect(page.getByTestId('action-symptom_note')).toHaveAttribute('data-status', 'saved');
+    await page.getByRole('button', { name: 'Close assistant' }).click();
+    await expect(page.getByTestId('rechecks')).toContainText('Red itchy patch, left forearm');
+
+    // Report card → opens the report with Claude's note; it is not sent by itself.
+    await page.getByTestId('assistant-open').click();
+    await page.getByTestId('action-report-confirm').click();
+    const dialog = page.getByTestId('escalation-dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('textbox')).toHaveValue('Red itchy patch on the left forearm since yesterday.');
+    await page.getByRole('button', { name: 'Close escalation dialog' }).click();
+    await expect(dialog).toBeHidden();
+
+    // The follow-up message carries the earlier turns as history.
+    await page.getByLabel('Message Evexia AI').fill('It started yesterday');
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect.poll(() => sent.length).toBe(2);
+    expect(sent[1].history.map((m) => m.role)).toEqual(['user', 'assistant']);
+    expect(sent[1].history[0].text).toMatch(/\[photo attached\]$/);
+    expect(sent[1].image).toBeUndefined();
+  });
+
+  test('17. safety screen: danger signs lead to emergency mode, even offline; photos need Claude', async ({ page }) => {
+    await page.getByTestId('assistant-open').click();
+    await page.getByTestId('online-toggle').click();
+    await page.getByLabel('Message Evexia AI').fill('I have chest pain');
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    const alert = page.getByTestId('assistant-emergency');
+    await expect(alert).toContainText('Possible danger sign: chest pain or pressure');
+    await expect(page.getByTestId('assistant-messages')).toContainText('open emergency mode and alert the crew medical officer');
+    await page.getByTestId('photo-button').click();
+    await expect(page.getByTestId('assistant-notice')).toContainText('Photos need Claude');
+    await alert.getByRole('link', { name: 'Open emergency mode' }).click();
+    await expect(page).toHaveURL(/\/emergency$/);
   });
 
   test('15. every astronaut page loads with the disclaimer and no console errors', async ({ page }) => {
