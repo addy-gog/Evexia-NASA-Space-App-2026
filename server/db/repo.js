@@ -40,7 +40,16 @@ export function createRepo(db) {
        ON CONFLICT(crew_id) DO UPDATE SET hr = excluded.hr, sys = excluded.sys, dia = excluded.dia,
          glucose = excluded.glucose, temp = excluded.temp, sleep = excluded.sleep`,
     ),
-    escInsert: db.prepare('INSERT INTO escalations (crew_id, priority, payload_json, status, note, created_at) VALUES (?, ?, ?, ?, ?, ?)'),
+    escInsert: db.prepare('INSERT INTO escalations (crew_id, priority, payload_json, status, note, created_at, delay_seconds) VALUES (?, ?, ?, ?, ?, ?, ?)'),
+    // Earth link (see server/lib/link.js): reports waiting to leave, emergencies first, then oldest first.
+    escWaiting: db.prepare("SELECT * FROM escalations WHERE sent_at IS NULL ORDER BY CASE priority WHEN 'emergency' THEN 0 ELSE 1 END, id"),
+    escMarkSent: db.prepare('UPDATE escalations SET sent_at = ?, arrive_at = ?, receipt_at = ? WHERE id = ?'),
+    replyWaiting: db.prepare("SELECT * FROM escalations WHERE back_written_at IS NOT NULL AND back_sent_at IS NULL ORDER BY CASE priority WHEN 'emergency' THEN 0 ELSE 1 END, id"),
+    replyMarkSent: db.prepare('UPDATE escalations SET back_sent_at = ?, back_arrive_at = ? WHERE id = ?'),
+    replySet: db.prepare('UPDATE escalations SET back_kind = ?, back_text = ?, back_written_at = ?, back_sent_at = NULL, back_arrive_at = NULL WHERE id = ?'),
+    linkGet: db.prepare('SELECT * FROM link_state WHERE id = 1'),
+    linkInsert: db.prepare('INSERT OR IGNORE INTO link_state (id, mode, time_scale, updated_at) VALUES (1, ?, ?, ?)'),
+    linkUpdate: db.prepare('UPDATE link_state SET mode = ?, time_scale = ?, updated_at = ? WHERE id = 1'),
     escAll: db.prepare('SELECT * FROM escalations ORDER BY CASE priority WHEN \'emergency\' THEN 0 ELSE 1 END, id DESC'),
     escOne: db.prepare('SELECT * FROM escalations WHERE id = ?'),
     escUpdate: db.prepare('UPDATE escalations SET status = ?, note = ? WHERE id = ?'),
@@ -85,7 +94,24 @@ export function createRepo(db) {
       notes: r.notes,
     };
   const toEsc = (r) =>
-    r && { id: r.id, crewId: r.crew_id, priority: r.priority, payload: JSON.parse(r.payload_json), status: r.status, note: r.note, createdAt: r.created_at };
+    r && {
+      id: r.id,
+      crewId: r.crew_id,
+      priority: r.priority,
+      payload: JSON.parse(r.payload_json),
+      status: r.status,
+      note: r.note,
+      createdAt: r.created_at,
+      link: {
+        delaySeconds: r.delay_seconds ?? 0,
+        sentAt: r.sent_at ?? null,
+        arriveAt: r.arrive_at ?? null,
+        receiptAt: r.receipt_at ?? null,
+        back: r.back_written_at
+          ? { kind: r.back_kind, text: r.back_text ?? '', writtenAt: r.back_written_at, sentAt: r.back_sent_at ?? null, arriveAt: r.back_arrive_at ?? null }
+          : null,
+      },
+    };
   const toCrew = (r) =>
     r && { id: r.id, name: r.name, role: r.role, born: r.born, sex: r.sex, bloodType: r.blood_type, heightCm: r.height_cm, massKg: r.mass_kg, callsign: r.callsign, avatar: r.avatar };
   const toUser = (r) => r && { id: r.id, username: r.username, role: r.role, crewId: r.crew_id, name: r.name, avatar: r.avatar };
@@ -127,11 +153,31 @@ export function createRepo(db) {
     },
 
     insertEscalation(p) {
-      const info = q.escInsert.run(p.crew.id, p.priority ?? 'routine', JSON.stringify(p), 'new', '', new Date().toISOString());
+      const delay = Number(p.delay?.seconds);
+      const info = q.escInsert.run(p.crew.id, p.priority ?? 'routine', JSON.stringify(p), 'new', '', new Date().toISOString(), Number.isFinite(delay) && delay > 0 ? delay : 0);
       return toEsc(plain(q.escOne.get(info.lastInsertRowid)));
     },
     listEscalations: () => q.escAll.all().map((r) => toEsc(plain(r))),
     getEscalation: (id) => toEsc(plain(q.escOne.get(id))),
+    escalationsWaiting: () => q.escWaiting.all().map((r) => toEsc(plain(r))),
+    repliesWaiting: () => q.replyWaiting.all().map((r) => toEsc(plain(r))),
+    markEscalationSent: (id, { sentAt, arriveAt, receiptAt }) => q.escMarkSent.run(sentAt, arriveAt, receiptAt, id),
+    markReplySent: (id, { sentAt, arriveAt }) => q.replyMarkSent.run(sentAt, arriveAt, id),
+    /** Queue something to travel back to the crew: a reply with text, or a plain "read" receipt. */
+    setReply: (id, { kind, text = '', writtenAt }) => q.replySet.run(kind, text, writtenAt, id),
+
+    /** The Earth link switch. Created on first use with the given defaults. */
+    getLink(defaults = {}) {
+      q.linkInsert.run(defaults.mode ?? 'up', defaults.timeScale ?? 1 / 30, new Date().toISOString());
+      const r = plain(q.linkGet.get());
+      return { mode: r.mode, timeScale: r.time_scale, updatedAt: r.updated_at };
+    },
+    setLink({ mode, timeScale }) {
+      const cur = repo.getLink();
+      q.linkUpdate.run(mode ?? cur.mode, timeScale ?? cur.timeScale, new Date().toISOString());
+      return repo.getLink();
+    },
+
     updateEscalation(id, { status, note }) {
       const cur = repo.getEscalation(id);
       if (!cur) return null;

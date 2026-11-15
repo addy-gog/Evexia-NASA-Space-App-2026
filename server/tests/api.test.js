@@ -25,7 +25,7 @@ const nowIso = () => new Date().toISOString();
 
 beforeAll(async () => {
   ({ repo } = seed({ dbPath: ':memory:', days: 21 }));
-  app = createApp({ repo, driver: 'test', assistantConfig: offlineConfig, rateLimitMax: 1000, loginRateLimitMax: 1000 });
+  app = createApp({ repo, driver: 'test', assistantConfig: offlineConfig, rateLimitMax: 1000, loginRateLimitMax: 1000, linkTimeScale: 0 });
   sx = await signIn(app, 'surgeon');
 });
 
@@ -150,6 +150,55 @@ describe('crew status (flight surgeon)', () => {
     expect(c5.triage).toMatchObject({ tier: 'amber', target: 'Within 60 min' });
     expect(c5.triage.top).toMatchObject({ letter: expect.any(String), label: expect.any(String) });
     for (const c of crew) if (c.triage.tier && c.triage.tier !== 'green') expect(c.score).toBeLessThanOrEqual(c.triage.cap);
+  });
+});
+
+describe('Earth link API', () => {
+  const report = (priority = 'routine') => {
+    const logs = [{ id: 'x', crewId: 'c1', ts: nowIso(), glucose: 130, environment: 'marsTransit', source: 'manual' }];
+    const status = evaluateCurrent(logs, { environment: 'marsTransit' });
+    return buildEscalationReport({ crew: { id: 'c1', name: 'Cdr. Ada Okafor', role: 'Commander' }, status, environment: 'marsTransit', delaySeconds: 720, priority });
+  };
+
+  it('blackout: the astronaut sees "waiting", the flight surgeon sees nothing; link up: it arrives', async () => {
+    const me = await signIn(app, 'okafor');
+    expect((await me.put('/api/link').send({ mode: 'blackout' })).body.mode).toBe('blackout');
+    const sent = await me.post('/api/escalations').send(report('emergency'));
+    expect(sent.status).toBe(201);
+    expect(sent.body.link.step).toBe('waiting');
+    expect((await me.get('/api/link')).body).toMatchObject({ mode: 'blackout', waiting: 1 });
+    expect((await sx.get('/api/escalations')).body.escalations.some((e) => e.id === sent.body.id)).toBe(false);
+
+    await me.put('/api/link').send({ mode: 'up' });
+    const surgeon = (await sx.get('/api/escalations')).body.escalations.find((e) => e.id === sent.body.id);
+    expect(surgeon).toBeTruthy();
+    expect(surgeon.link.writtenAt).toBe(sent.body.payload.createdAt);
+    expect(surgeon.link.arrivedAt).toBeTruthy();
+    expect((await me.get('/api/escalations')).body.escalations.find((e) => e.id === sent.body.id).link.step).toBe('arrived');
+  });
+
+  it('the surgeon replies; the reply reaches the crew, the private note does not', async () => {
+    const me = await signIn(app, 'okafor');
+    const id = (await me.post('/api/escalations').send(report())).body.id;
+    await sx.patch(`/api/escalations/${id}`).send({ note: 'ground-only note' });
+    const r = await sx.post(`/api/escalations/${id}/reply`).send({ text: 'Drink water, retest fasting glucose tomorrow.' });
+    expect(r.status).toBe(200);
+    expect(r.body.status).toBe('reviewed');
+    const mine = (await me.get('/api/escalations')).body.escalations.find((e) => e.id === id);
+    expect(mine.link.step).toBe('replied');
+    expect(mine.link.reply.text).toBe('Drink water, retest fasting glucose tomorrow.');
+    expect(JSON.stringify(mine)).not.toContain('ground-only note');
+  });
+
+  it('validates link changes and replies; astronauts cannot reply', async () => {
+    const me = await signIn(app, 'okafor');
+    expect((await me.put('/api/link').send({ mode: 'sideways' })).status).toBe(400);
+    expect((await me.put('/api/link').send({ timeScale: 2 })).status).toBe(400);
+    expect((await me.put('/api/link').send({})).status).toBe(400);
+    expect((await me.post('/api/escalations/1/reply').send({ text: 'hi' })).status).toBe(403);
+    expect((await sx.post('/api/escalations/1/reply').send({ text: '' })).status).toBe(400);
+    expect((await sx.post('/api/escalations/99999/reply').send({ text: 'hi' })).status).toBe(404);
+    await me.put('/api/link').send({ mode: 'up', timeScale: 0 });
   });
 });
 

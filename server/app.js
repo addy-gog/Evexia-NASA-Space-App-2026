@@ -15,6 +15,7 @@ import { ENVIRONMENTS, READING_FIELDS, TRIAGE } from '../client/src/config/thres
 import { answerQuestion, getAssistantConfig, normaliseImage } from './lib/assistant.js';
 import { getSpaceWeather } from './lib/spaceWeather.js';
 import { ageOn } from './lib/people.js';
+import { LINK_MODES, DEFAULT_TIME_SCALE, advanceLink, crewView, hasArrived, surgeonView } from './lib/link.js';
 import {
   COOKIE,
   verifyPassword,
@@ -63,8 +64,21 @@ export function createApp({
   loginRateLimitMax,
   telemetryKey = process.env.TELEMETRY_KEY || '',
   spaceWeatherDeps = {},
+  // Earth link delay compression: 1 = real time, 1/30 = demo (12 min becomes 24 s), 0 = instant (tests).
+  linkTimeScale = process.env.LINK_TIME_SCALE !== undefined ? Number(process.env.LINK_TIME_SCALE) : undefined,
 } = {}) {
   const app = express();
+  repo.getLink({ timeScale: linkTimeScale ?? DEFAULT_TIME_SCALE });
+  if (linkTimeScale !== undefined) repo.setLink({ timeScale: linkTimeScale });
+  /** What this person can know about these reports right now (see server/lib/link.js). */
+  const reportsFor = (user, list) => {
+    const now = Date.now();
+    advanceLink(repo, now);
+    const fresh = list ?? repo.listEscalations();
+    if (user.role === 'surgeon') return fresh.filter((e) => hasArrived(e, now)).map((e) => surgeonView(e, now));
+    const mode = repo.getLink().mode;
+    return fresh.filter((e) => e.crewId === user.crewId).map((e) => crewView(e, mode, now));
+  };
   const bus = new EventEmitter();
   bus.setMaxListeners(200);
   app.disable('x-powered-by');
@@ -194,7 +208,7 @@ export function createApp({
       baseline: repo.getBaseline(crewId),
       readings: repo.readingsSince(crewId, since).reverse(),
       devices: repo.listDevices(crewId),
-      escalations: repo.listEscalations().filter((e) => e.crewId === crewId),
+      escalations: reportsFor(req.user).filter((e) => e.crewId === crewId),
     });
   });
 
@@ -289,13 +303,50 @@ export function createApp({
     const crewId = crewFor(req, res, req.body.crew.id);
     if (!crewId) return undefined;
     const saved = repo.insertEscalation(req.body);
+    advanceLink(repo);
     bus.emit('escalation', saved);
-    return res.status(201).json(saved);
+    // The sender gets the crew's view: saved on board, waiting for the link, or on its way.
+    const [view] = reportsFor({ role: 'astronaut', crewId: saved.crewId }, [repo.getEscalation(saved.id)]);
+    return res.status(201).json(view);
   });
 
   api.get('/escalations', requireAuth, (req, res) => {
-    const all = repo.listEscalations();
-    res.json({ escalations: req.user.role === 'surgeon' ? all : all.filter((e) => e.crewId === req.user.crewId) });
+    res.json({ escalations: reportsFor(req.user), link: repo.getLink() });
+  });
+
+  // ---------- Earth link (store-and-forward simulator, see server/lib/link.js) ----------
+  api.get('/link', requireAuth, (req, res) => {
+    advanceLink(repo);
+    const mine = req.user.role === 'astronaut' ? reportsFor(req.user) : [];
+    res.json({ ...repo.getLink(), waiting: mine.filter((e) => ['waiting', 'saved', 'sending'].includes(e.link.step)).length, unconfirmed: mine.filter((e) => e.link.step === 'sent').length });
+  });
+
+  // Demo control: anyone signed in may switch the link or change the demo speed.
+  api.put('/link', requireAuth, (req, res) => {
+    const { mode, timeScale } = req.body ?? {};
+    const errors = {};
+    if (mode !== undefined && !LINK_MODES.includes(mode)) errors.mode = `mode must be one of ${LINK_MODES.join(', ')}.`;
+    if (timeScale !== undefined && (typeof timeScale !== 'number' || !(timeScale >= 0 && timeScale <= 1))) errors.timeScale = 'timeScale must be a number from 0 to 1.';
+    if (mode === undefined && timeScale === undefined) errors.body = 'Provide mode and/or timeScale.';
+    if (Object.keys(errors).length) return badRequest(res, errors);
+    advanceLink(repo); // send anything already due under the old setting first
+    repo.setLink({ mode, timeScale });
+    advanceLink(repo);
+    return res.json(repo.getLink());
+  });
+
+  // The flight surgeon's reply travels back to the crew with the same delay.
+  api.post('/escalations/:id/reply', requireRole('surgeon'), (req, res) => {
+    const id = Number(req.params.id);
+    const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+    if (!Number.isInteger(id)) return badRequest(res, { id: 'Invalid id.' });
+    if (!text || text.length > 2000) return badRequest(res, { text: 'text must be 1 to 2000 characters.' });
+    const cur = repo.getEscalation(id);
+    if (!cur || !hasArrived(cur)) return res.status(404).json({ error: 'not_found' });
+    repo.setReply(id, { kind: 'reply', text, writtenAt: new Date().toISOString() });
+    if (repo.getEscalation(id).status !== 'reviewed') repo.updateEscalation(id, { status: 'reviewed' });
+    advanceLink(repo);
+    return res.json(surgeonView(repo.getEscalation(id)));
   });
 
   api.patch('/escalations/:id', requireRole('surgeon'), (req, res) => {
@@ -307,9 +358,13 @@ export function createApp({
     if (note !== undefined && (typeof note !== 'string' || note.length > 2000)) errors.note = 'note must be a string up to 2000 characters.';
     if (status === undefined && note === undefined) errors.body = 'Provide status and/or note.';
     if (Object.keys(errors).length) return badRequest(res, errors);
-    const updated = repo.updateEscalation(id, { status, note });
-    if (!updated) return res.status(404).json({ error: 'not_found' });
-    return res.json(updated);
+    const cur = repo.getEscalation(id);
+    if (!cur || !hasArrived(cur)) return res.status(404).json({ error: 'not_found' });
+    repo.updateEscalation(id, { status, note });
+    // Marking reviewed sends a plain "read" receipt back, unless a reply is already on its way.
+    if (status === 'reviewed' && !cur.link.back) repo.setReply(id, { kind: 'ack', writtenAt: new Date().toISOString() });
+    advanceLink(repo);
+    return res.json(surgeonView(repo.getEscalation(id)));
   });
 
   // ---------- Symptom notes (saved by the astronaut from an assistant proposal) ----------

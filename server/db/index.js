@@ -78,6 +78,13 @@ CREATE TABLE IF NOT EXISTS escalations (
   note TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL
 );
+-- Earth link simulator: one row. mode 'up' or 'blackout'; time_scale compresses the light delay for demos.
+CREATE TABLE IF NOT EXISTS link_state (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  mode TEXT NOT NULL DEFAULT 'up' CHECK (mode IN ('up', 'blackout')),
+  time_scale REAL NOT NULL DEFAULT 0.0333333,
+  updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS telemetry (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   crew_id TEXT NOT NULL,
@@ -132,6 +139,21 @@ function migrate(db) {
   const has = (table, col) => db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col);
   // 16 Nov 2026: blood oxygen (SpO2), ABCDE rank A/B in the triage.
   if (!has('readings', 'spo2')) db.exec('ALTER TABLE readings ADD COLUMN spo2 REAL;');
+  // 15 Nov 2026: Earth link (store and forward). Reports made before this existed count as delivered.
+  if (!has('escalations', 'sent_at')) {
+    db.exec(`
+      ALTER TABLE escalations ADD COLUMN delay_seconds REAL NOT NULL DEFAULT 0;
+      ALTER TABLE escalations ADD COLUMN sent_at TEXT;
+      ALTER TABLE escalations ADD COLUMN arrive_at TEXT;
+      ALTER TABLE escalations ADD COLUMN receipt_at TEXT;
+      ALTER TABLE escalations ADD COLUMN back_kind TEXT;
+      ALTER TABLE escalations ADD COLUMN back_text TEXT NOT NULL DEFAULT '';
+      ALTER TABLE escalations ADD COLUMN back_written_at TEXT;
+      ALTER TABLE escalations ADD COLUMN back_sent_at TEXT;
+      ALTER TABLE escalations ADD COLUMN back_arrive_at TEXT;
+      UPDATE escalations SET sent_at = created_at, arrive_at = created_at, receipt_at = created_at;
+    `);
+  }
 }
 
 /** Normalise rows (node:sqlite returns null-prototype objects). */
