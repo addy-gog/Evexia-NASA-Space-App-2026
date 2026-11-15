@@ -68,4 +68,10 @@ Browsed 15 Nov 2026 (15-minute box). One principle each, not pixels:
 - Easing: sine in-out over the whole sweep. Reduced motion: instant swap, no ring.
 - The female model needs the same arm measurement before it ships. [NEEDS: measure the female model's arm zone]
 
+**Layout (built 15 Nov 2026; Mutalib said "build it" without a layout board).** Viewer takes about two thirds of the width; view buttons across its top, ordered outside to inside; Front / Side / Back and the Exploded spread slider along its bottom; the readings list, the reading detail and the actions in a rail on the right (stacked below on phones).
+
+**Marker placement (measured, then corrected by testing).** At this size a 44 px tap area is about 0.14 m of body, so anchors sit at least 0.14 m apart (enforced by `client/tests/anatomy.test.js`). Blood pressure moved from the aorta to the right neck artery after the browser test found its tap area covering the heart; temperature moved from the forehead to the armpit (it sat on the sleep marker); radiation moved from the pelvis centre to the right thigh bone (the pelvis centre landed on the groin). In the Exploded view each marker rides with its part.
+
+**Gates (15 Nov 2026).** `gate.py`: 0 block, 0 warn. Humanizer `ux-microcopy`: 100/85 after removing two "…" characters. impeccable (rendered page): 4 findings, all already present on the Console before this page (header pill padding, the assistant's border plus wide shadow, Inter as body font, one nested card); line-length findings on this page were fixed by capping the intro at 62ch and the credits line at 58ch.
+
 Tone: clinical, calm, exact. Type, colour and spacing: existing Evexia tokens. What we refuse: glow-everything sci-fi, more than one animated moment per view, dark-mode-only "HUD" styling.

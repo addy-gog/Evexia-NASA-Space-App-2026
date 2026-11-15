@@ -9,17 +9,11 @@ import { GUIDANCE, GREEN_MESSAGE } from '../content/guidance.js';
 import { GUIDE } from '../content/guide.js';
 import { HAZARDS } from '../content/hazards.js';
 import { useHealthStore, usePrefersReducedMotion } from '../store/useHealthStore.js';
+import { hasWebGL } from '../lib/webgl.js';
 
 const Body3D = lazy(() => import('./Body3D.jsx'));
 
-export function hasWebGL() {
-  try {
-    const c = document.createElement('canvas');
-    return Boolean(window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl')));
-  } catch {
-    return false;
-  }
-}
+export { hasWebGL };
 
 class WebGLBoundary extends Component {
   constructor(props) {
@@ -108,7 +102,10 @@ export default function BodyView({ status: statusProp, selected: selProp, onSele
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 id="body-title" className="hud-title">Body map</h2>
-          <p className="text-sm text-ink-3">Tap a marker to see what it means.</p>
+          <p className="text-sm text-ink-3">
+            Tap a marker to see what it means.{' '}
+            <Link to={`/body?reading=${selected}`} className="font-semibold text-accent underline-offset-2 hover:underline" data-testid="open-body-page">Open full body view</Link>
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {use3D && (

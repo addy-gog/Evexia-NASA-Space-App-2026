@@ -17,6 +17,7 @@ import { preparePhoto, useDictation, useSpeaker } from '../../lib/media.js';
 import { ENVIRONMENTS, INDICATORS } from '../../config/thresholds.js';
 import { SEVERITY_META } from '../Status.jsx';
 import CompanionStill from './CompanionStill.jsx';
+import { hasWebGL } from '../../lib/webgl.js';
 import ActionCard from './ActionCard.jsx';
 import EscalationDialog from '../EscalationDialog.jsx';
 import CameraDialog from './CameraDialog.jsx';
@@ -61,6 +62,8 @@ export default function AIDock() {
   const delaySeconds = useHealthStore((s) => s.delaySeconds);
   const profile = useHealthStore((s) => s.profile);
   const reduced = usePrefersReducedMotion();
+  // The 3D companion needs WebGL; without it (or with reduced motion) the still drawing stands in, instead of a crash.
+  const still = reduced || !hasWebGL();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [hover, setHover] = useState(false);
@@ -254,7 +257,7 @@ export default function AIDock() {
             </div>
           )}
           <div className="flex justify-center py-2 sm:hidden" aria-hidden="true">
-            {reduced ? <CompanionStill size={110} light={SEVERITY_META[worst].color} /> : (
+            {still ? <CompanionStill size={110} light={SEVERITY_META[worst].color} /> : (
               <Suspense fallback={<CompanionStill size={110} light={SEVERITY_META[worst].color} />}>
                 <Companion status={compStatus} thinking={busy} open size={120} />
               </Suspense>
@@ -440,7 +443,7 @@ export default function AIDock() {
             <span className="absolute -top-1 left-1/2 block h-2 w-2 rounded-full bg-accent" />
           </span>
           <span className="absolute -top-3 left-1/2 block -translate-x-1/2">
-            {reduced ? (
+            {still ? (
               <CompanionStill size={84} light={SEVERITY_META[worst].color} />
             ) : (
               <Suspense fallback={<CompanionStill size={84} light={SEVERITY_META[worst].color} />}>

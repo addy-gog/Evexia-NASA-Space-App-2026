@@ -12,8 +12,8 @@ const NAV = [
   { to: '/log', label: 'Log Readings', short: 'Log', icon: 'M12 5v14M5 12h14' },
   { to: '/history', label: 'History', short: 'History', icon: 'M3 20h18M6 16l4-5 4 3 5-7' },
   { to: '/alerts', label: 'Guidance', short: 'Guidance', icon: 'M12 3l10 18H2zM12 10v4M12 17.5v.5' },
-  // NASA Data sits in the main bar so judges and crew find the real data behind every threshold.
-  { to: '/data', label: 'NASA Data', short: 'NASA', icon: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18' },
+  // Body replaced NASA in the bar (Mutalib, 15 Nov 2026); NASA Data is in the profile menu.
+  { to: '/body', label: 'Body', short: 'Body', icon: 'M12 2.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5zM6 9.5h12M12 9.5v6M12 15.5l-3.5 6M12 15.5l3.5 6' },
 ];
 
 function NavIcon({ d }) {
@@ -90,6 +90,7 @@ function ProfileMenu() {
           </div>
           <nav aria-label="Account" className="flex flex-col pt-1">
             <Link className={item} to="/settings" onClick={() => setOpen(false)}>Mission &amp; Settings</Link>
+            <Link className={item} to="/data" onClick={() => setOpen(false)}>NASA Data</Link>
             <Link className={item} to="/telemetry" onClick={() => setOpen(false)}>Live Telemetry</Link>
             <Link className={item} to="/guide" onClick={() => setOpen(false)}>Measurement guide</Link>
             <Link className={item} to="/credits" onClick={() => setOpen(false)}>Credits &amp; sources</Link>
@@ -193,6 +194,7 @@ function TabBar() {
 const TITLES = {
   '/': 'Console',
   '/log': 'Log Readings',
+  '/body': 'Body',
   '/history': 'History',
   '/telemetry': 'Live Telemetry',
   '/alerts': 'Guidance',

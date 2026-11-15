@@ -253,7 +253,7 @@ test.describe('Console', () => {
         }),
       );
     }
-    for (const want of ['Console', 'Log Readings', 'History', 'Guidance', 'NASA Data', 'emergency-button', 'profile-button', 'envseg-marsTransit', 'baseline-switch', 'console-input-hr', 'hotspot-hr', 'send-report-card', 'assistant-open']) {
+    for (const want of ['Console', 'Log Readings', 'History', 'Guidance', 'Body', 'emergency-button', 'profile-button', 'envseg-marsTransit', 'baseline-switch', 'console-input-hr', 'hotspot-hr', 'send-report-card', 'assistant-open']) {
       expect([...seen], `focus order should include ${want}`).toContain(want);
     }
     await page.getByRole('link', { name: 'Log Readings', exact: true }).focus();

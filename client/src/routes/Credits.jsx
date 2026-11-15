@@ -1,4 +1,5 @@
 import { SOURCES } from '../config/thresholds.js';
+import { MODEL_CREDITS } from '../config/anatomy.js';
 
 export default function Credits() {
   return (
@@ -7,15 +8,16 @@ export default function Credits() {
       <section className="hud-panel space-y-2 text-sm">
         <h2 className="text-lg font-bold">3D body</h2>
         <p>
-          The body shown in this build is a stylised model made from three.js primitives (original work, MIT). It uses the same mesh names as a processed anatomy model so a real model can be swapped in.
+          The body map on the Console is a stylised model made from three.js primitives (original work, MIT). The full Body page uses these models, each under its own licence:
         </p>
-        <p>Planned model sources (not bundled in this build):</p>
-        <ul className="list-disc pl-5">
-          <li>Z-Anatomy (CC BY-SA 4.0), derived from BodyParts3D: github.com/LluisV/Z-Anatomy, github.com/Z-Anatomy/Models-of-human-anatomy</li>
-          <li>BodyParts3D, © The Database Center for Life Science (now CC BY 4.0)</li>
-          <li>NIH 3D (3d.nih.gov), CC-BY models</li>
+        <ul className="list-disc space-y-1 pl-5" data-testid="model-credits">
+          {MODEL_CREDITS.map((c) => (
+            <li key={c.title}>
+              <strong>{c.what}:</strong> &ldquo;{c.title}&rdquo; by {c.author}, {c.licence}. <a href={c.url} className="text-accent underline" target="_blank" rel="noreferrer">Source</a>.{c.note ? ` ${c.note}` : ''}
+            </li>
+          ))}
         </ul>
-        <p>If these models are bundled, keep each file&apos;s licence and attribution (Z-Anatomy CC BY-SA 4.0; BodyParts3D CC BY 4.0).</p>
+        <p>BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International.</p>
       </section>
       <section className="hud-panel space-y-2 text-sm">
         <h2 className="text-lg font-bold">Software</h2>

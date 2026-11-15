@@ -19,6 +19,7 @@ import { api } from './lib/api.js';
 // Chart-heavy and ground-side pages load on demand.
 const History = lazy(() => import('./routes/History.jsx'));
 const NasaData = lazy(() => import('./routes/NasaData.jsx'));
+const BodyPage = lazy(() => import('./routes/BodyPage.jsx'));
 const SurgeonOverview = lazy(() => import('./routes/surgeon/Overview.jsx'));
 const CrewDetail = lazy(() => import('./routes/surgeon/CrewDetail.jsx'));
 const SurgeonEscalations = lazy(() => import('./routes/surgeon/Escalations.jsx'));
@@ -142,6 +143,7 @@ export default function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="log" element={<LogReadings />} />
+        <Route path="body" element={lazyEl(BodyPage)} />
         <Route path="history" element={lazyEl(History)} />
         <Route path="telemetry" element={<Telemetry />} />
         <Route path="alerts" element={<Alerts />} />

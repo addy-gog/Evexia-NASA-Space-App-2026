@@ -10,6 +10,7 @@ const ASTRONAUT_PAGES = [
   ['Guide', '/guide'],
   ['Emergency', '/emergency'],
   ['NASA Data', '/data'],
+  ['Body', '/body'],
   ['Settings', '/settings'],
 ];
 
