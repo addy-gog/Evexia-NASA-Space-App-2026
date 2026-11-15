@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { buildEscalationReport, reportToText } from '../lib/escalation.js';
 import { useHealthStore } from '../store/useHealthStore.js';
 import { api } from '../lib/api.js';
+import { saveOutboxReport } from '../lib/outbox.js';
 import { GUIDANCE } from '../content/guidance.js';
 
 function download(name, text, type = 'text/plain') {
@@ -89,7 +90,8 @@ export default function EscalationDialog({ focusId, onClose, onSent, priority = 
       s.setApiOnline(true);
       s.loadEarthLink();
     } catch {
-      setStatus({ tone: 'warn', msg: 'Ground link unavailable: report saved for download. Copy or download it and send when the link returns.' });
+      await saveOutboxReport(report);
+      setStatus({ tone: 'warn', msg: 'Ground link unavailable: report saved to outbox. Copy or download it and send when the link returns.' });
       s.setApiOnline(false);
     }
   };

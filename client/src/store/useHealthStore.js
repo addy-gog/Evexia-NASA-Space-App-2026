@@ -13,6 +13,7 @@ import { evaluateCurrent, sortLogs, DAY_MS } from '../lib/evaluate.js';
 import { mostSevere } from '../lib/severity.js';
 import { aggregateForSync, pruneSamples } from '../lib/telemetry.js';
 import { api, newId } from '../lib/api.js';
+import { saveOutboxLog, markOutboxLogSynced, getPendingLogs } from '../lib/outbox.js';
 
 export const CREW = [
   { id: 'c1', name: 'Cdr. Ada Okafor', role: 'Commander' },
@@ -181,6 +182,7 @@ export const useHealthStore = create(
           const s = get();
           const entry = { id: newId(), crewId: s.crewId, ts, ...values, spe: Boolean(spe), environment: s.environment, source, device, notes: notes.trim(), pending: true };
           update({ logs: [...s.logs, entry], focusNonce: s.focusNonce + 1, clock: Date.now() });
+          saveOutboxLog(entry);
           get().pushLog(entry);
           return entry;
         },
@@ -188,9 +190,11 @@ export const useHealthStore = create(
           const { pending: _p, ...body } = entry;
           try {
             await api.postReading(body);
+            await markOutboxLogSynced(entry.id);
             update({ logs: get().logs.map((l) => (l.id === entry.id ? { ...l, pending: false } : l)), apiOnline: true });
           } catch (err) {
             if (err.status === 400) {
+              await markOutboxLogSynced(entry.id);
               get().showToast(`Ground rejected log entry: ${Object.values(err.data?.details || {}).join(' ')}`, 'warn');
               update({ logs: get().logs.map((l) => (l.id === entry.id ? { ...l, pending: false, rejected: true } : l)) });
             } else set({ apiOnline: false });
@@ -199,6 +203,7 @@ export const useHealthStore = create(
         deleteLog: async (id) => {
           const s = get();
           update({ logs: s.logs.filter((l) => l.id !== id) });
+          await markOutboxLogSynced(id);
           try {
             await api.deleteReading(id, s.crewId);
           } catch {
@@ -211,11 +216,24 @@ export const useHealthStore = create(
           set({ loading: true });
           try {
             const res = await api.readings(crewId, new Date(Date.now() - 90 * DAY_MS).toISOString());
-            const local = get().logs.filter((l) => l.crewId !== crewId || l.pending);
-            const ids = new Set(local.map((l) => l.id));
-            update({ logs: [...local, ...res.readings.filter((r) => !ids.has(r.id))], apiOnline: true, loading: false });
-            for (const p of local.filter((l) => l.pending && l.crewId === crewId)) get().pushLog(p);
+            const pendingOutbox = await getPendingLogs(crewId);
+            const local = [...get().logs.filter((l) => l.crewId !== crewId || l.pending), ...pendingOutbox];
+            const ids = new Set();
+            const dedupedLocal = local.filter((l) => {
+              if (ids.has(l.id)) return false;
+              ids.add(l.id);
+              return true;
+            });
+            const serverIds = new Set(res.readings.map((r) => r.id));
+            update({ logs: [...dedupedLocal.filter((l) => !serverIds.has(l.id)), ...res.readings], apiOnline: true, loading: false });
+            for (const p of dedupedLocal.filter((l) => l.pending && l.crewId === crewId)) get().pushLog(p);
           } catch (err) {
+            const pendingOutbox = await getPendingLogs(crewId);
+            if (pendingOutbox.length > 0) {
+              const existingIds = new Set(get().logs.map((l) => l.id));
+              const toAdd = pendingOutbox.filter((p) => !existingIds.has(p.id));
+              if (toAdd.length) update({ logs: [...get().logs, ...toAdd] });
+            }
             if (err.status === 401) set({ user: null, loading: false });
             else set({ apiOnline: false, loading: false });
           }

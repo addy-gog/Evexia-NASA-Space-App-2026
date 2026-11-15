@@ -16,6 +16,7 @@ import SpaceBackground from './components/SpaceBackground.jsx';
 import { useHealthStore } from './store/useHealthStore.js';
 import { useTelemetryStream, useAutoSync } from './hooks/useTelemetry.js';
 import { api } from './lib/api.js';
+import { flushOutbox } from './lib/outbox.js';
 
 // Chart-heavy and ground-side pages load on demand.
 const History = lazy(() => import('./routes/History.jsx'));
@@ -66,6 +67,7 @@ function useConnectionMonitor() {
           const s = useHealthStore.getState();
           const wasOffline = s.apiOnline === false;
           setApiOnline(true);
+          flushOutbox(api);
           if (wasOffline && s.user?.role === 'astronaut') s.loadLogs(); // flush pending entries
         })
         .catch(() => alive && setApiOnline(false));
