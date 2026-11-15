@@ -155,6 +155,41 @@ export const SCORE = {
   ],
 };
 
+/**
+ * Clinical prioritisation (lib/triage.js): the Interagency Integrated Triage Tool (IITT, WHO / ICRC / MSF)
+ * colour tiers, ranked inside each tier by the ABCDE primary survey. Each ABCDE rank has its own ceiling on
+ * the overall health %, so the number itself shows how urgent the worst problem is.
+ * Source: "IITT Clinical Prioritization Guide" (team design doc, Nov 2026). Weights and caps from that guide;
+ * the `critical` extremes used to grade how deep a reading sits in its red zone are demonstration values.
+ *
+ * Indicators listed under a rank but not measured by Evexia yet (spo2, pvt, sans, mood, exercise) are
+ * skipped: the weights of the readings present are renormalised, exactly as missing readings are today.
+ */
+export const TRIAGE = {
+  tiers: {
+    red: { label: 'Emergent', colour: 'Red', target: 'Immediate', targetMinutes: 0, weight: 1000 },
+    amber: { label: 'Urgent', colour: 'Yellow', target: 'Within 60 min', targetMinutes: 60, weight: 500 },
+    green: { label: 'Non-urgent', colour: 'Green', target: 'Routine (24 h)', targetMinutes: 1440, weight: 100 },
+  },
+  // ABCDE primary survey, highest priority first. `weights` are the guide's clinical weights in % (sum 100).
+  ranks: [
+    { rank: 1, letter: 'A/B', label: 'Airway & breathing', amberCap: 72, redCap: 39, rankScore: 50, weights: { spo2: 25 } },
+    { rank: 2, letter: 'C', label: 'Circulation', amberCap: 76, redCap: 45, rankScore: 40, weights: { hr: 12.5, bp: 12.5 } },
+    { rank: 3, letter: 'D', label: 'Disability (neuro & glucose)', amberCap: 80, redCap: 50, rankScore: 30, weights: { glucose: 8, pvt: 7, sans: 5 } },
+    { rank: 4, letter: 'E', label: 'Exposure, thermal & radiation', amberCap: 82, redCap: 55, rankScore: 20, weights: { radiation: 8, temp: 7 } },
+    { rank: 5, letter: 'Beh', label: 'Behaviour & countermeasures', amberCap: 84, redCap: 59, rankScore: 10, weights: { sleep: 6, mood: 5, exercise: 4 } },
+  ],
+  // Per-reading score range inside each zone (Step 1 of the guide).
+  zone: { green: [85, 100], amber: [50, 79], red: [0, 39] },
+  // Extra flags in the same colour cost points (Step 3).
+  penalty: { amber: 3, red: 7 },
+  flagCountWeight: 5,
+  // A reading at or beyond these limits scores 0 % (demonstration values). [low, high] for two-sided readings.
+  critical: { hr: [30, 150], sys: [70, 200], dia: [40, 120], glucose: [40, 250], temp: [32, 40.5], sleepHours: 3, radiationMsv: 10 },
+  // Sleep scores 100 % at this many hours or more, 85 % at the 7 h green minimum.
+  sleepOptimal: 8,
+};
+
 /** Comms delay above which the self-care protocol is shown first (seconds). */
 export const SELF_CARE_DELAY_SECONDS = 5 * 60;
 

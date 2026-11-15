@@ -58,7 +58,12 @@ test.describe('Console', () => {
     await logReadings(page, GREEN);
     for (const id of INDICATORS) await expect(card(page, id)).toHaveAttribute('data-severity', 'green');
     await expect(page.getByTestId('score-band')).toHaveText('Mission ready');
-    await expect(page.getByTestId('score-gauge')).toHaveAttribute('data-score', '100');
+    // All green scores 85–100 by how centred each reading is (IITT/ABCDE, lib/triage.js); no triage cap.
+    const score = Number(await page.getByTestId('score-gauge').getAttribute('data-score'));
+    expect(score).toBeGreaterThanOrEqual(85);
+    expect(score).toBeLessThanOrEqual(100);
+    await expect(page.getByTestId('triage-tier')).toHaveAttribute('data-tier', 'green');
+    await expect(page.getByTestId('score-cap')).toHaveCount(0);
     for (const li of await page.getByTestId('body-regions').locator('li').all()) await expect(li).toHaveAttribute('data-severity', 'green');
     await expect(page.getByTestId('all-nominal')).toBeVisible();
     await expect(page.getByTestId('measured-hr')).toContainText('just now');

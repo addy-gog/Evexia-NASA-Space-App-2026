@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceArea, ReferenceDot, Tooltip } from 'recharts';
 import { StatusBadge, StatusIcon, SEVERITY_META } from './Status.jsx';
-import { INDICATORS, ENVIRONMENTS, THRESHOLDS, VALID_RANGES } from '../config/thresholds.js';
+import { INDICATORS, ENVIRONMENTS, THRESHOLDS, VALID_RANGES, TRIAGE } from '../config/thresholds.js';
 import { FIELD_BY_KEY, rangeText } from '../config/fields.js';
 import { formatIndicatorValue, formatTime, relativeTime, formatDateTime } from '../lib/format.js';
 import { formatDelay, selfCareFirst } from '../lib/comms.js';
@@ -98,11 +98,20 @@ export function HealthScoreRing({ score, counts }) {
   const sev = band?.severity ?? 'green';
   const m = SEVERITY_META[sev];
   const C = 2 * Math.PI * 54;
+  const tier = score?.triage?.tier ?? null;
+  const top = score?.triage?.top ?? null;
   return (
     <section className="hud-feature flex flex-col gap-3.5" aria-labelledby="h-score" data-testid="score-gauge" data-score={value ?? ''} data-band={band?.label ?? ''}>
       <div className="flex items-center justify-between gap-2">
         <h2 id="h-score" className="hud-title text-white">Health score</h2>
-        <span className="rounded-full border border-ink/15 bg-ink/[0.06] px-2.5 py-1 text-[11px] font-semibold text-ink-2">Today</span>
+        {tier ? (
+          <span className="flex items-center gap-1.5 rounded-full border border-ink/15 bg-ink/[0.06] px-2.5 py-1 text-[11px] font-semibold text-ink-2" data-testid="triage-tier" data-tier={tier}>
+            <span className="block h-2 w-2 rounded-full" style={{ background: SEVERITY_META[tier].color }} aria-hidden="true" />
+            IITT {TRIAGE.tiers[tier].colour} · {TRIAGE.tiers[tier].target}
+          </span>
+        ) : (
+          <span className="rounded-full border border-ink/15 bg-ink/[0.06] px-2.5 py-1 text-[11px] font-semibold text-ink-2">Today</span>
+        )}
       </div>
       {value == null ? (
         <p className="text-sm text-ink-3">No current readings yet. Log readings or sync a wearable.</p>
@@ -125,7 +134,12 @@ export function HealthScoreRing({ score, counts }) {
               <span data-testid="score-band">{band.label}</span>
             </span>
             <span className="text-[13px] text-ink-2">{counts[0]} nominal · {counts[1]} caution · {counts[2]} critical</span>
-            {score.capped && <span className="text-xs text-ink-3">Capped at 59 because a reading is critical.</span>}
+            {top && (
+              <span className="text-xs text-ink-2" data-testid="triage-top">
+                Top priority: <strong className="text-ink">ABCDE {top.rank.letter}</strong> · {top.rank.label}
+              </span>
+            )}
+            {score.capReason && <span className="text-xs text-ink-3" data-testid="score-cap">{score.capReason}</span>}
           </div>
         </div>
       )}

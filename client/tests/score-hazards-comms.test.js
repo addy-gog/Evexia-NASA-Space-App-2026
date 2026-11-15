@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { computeScore, scoreBand } from '../src/lib/score.js';
+import { scoreBand } from '../src/lib/score.js';
 import { correlateHazards } from '../src/lib/hazards.js';
 import { commsPolicy, selfCareFirst, formatDelay } from '../src/lib/comms.js';
 import { evaluateReading, classifyCumulativeDose } from '../src/lib/severity.js';
 import { INDICATORS } from '../src/config/thresholds.js';
 
-const all = (sev) => Object.fromEntries(INDICATORS.map((m) => [m.id, { severity: sev }]));
 
 describe('health score', () => {
   it('weights sum to 100', () => {
@@ -14,40 +13,7 @@ describe('health score', () => {
       hr: 20, bp: 20, sleep: 20, glucose: 15, radiation: 15, temp: 10,
     });
   });
-  it('all green = 100 Mission ready', () => {
-    const s = computeScore(all('green'));
-    expect(s.score).toBe(100);
-    expect(s.band.label).toBe('Mission ready');
-  });
-  it('all amber = 60 Monitor closely', () => {
-    const s = computeScore(all('amber'));
-    expect(s.score).toBe(60);
-    expect(s.band.label).toBe('Monitor closely');
-  });
-  it('all red = 20 Action needed', () => {
-    expect(computeScore(all('red')).score).toBe(20);
-  });
-  it('weighted average: heart rate amber only → 92', () => {
-    expect(computeScore({ ...all('green'), hr: { severity: 'amber' } }).score).toBe(92);
-  });
-  it('weighted average: temp amber only → 96 (weight 10)', () => {
-    expect(computeScore({ ...all('green'), temp: { severity: 'amber' } }).score).toBe(96);
-  });
-  it('caps at 59 when any indicator is red', () => {
-    const s = computeScore({ ...all('green'), temp: { severity: 'red' } });
-    // raw would be 92
-    expect(s.score).toBe(59);
-    expect(s.capped).toBe(true);
-    expect(s.band.label).toBe('Act now');
-  });
-  it('does not raise a score already below the cap', () => {
-    const s = computeScore(all('red'));
-    expect(s.capped).toBe(false);
-  });
-  it('averages only indicators that are present', () => {
-    expect(computeScore({ hr: { severity: 'amber' } }).score).toBe(60);
-    expect(computeScore({}).score).toBeNull();
-  });
+  // The score maths (IITT + ABCDE) is covered in tests/triage.test.js.
   it('band boundaries', () => {
     expect(scoreBand(85).label).toBe('Mission ready');
     expect(scoreBand(84).label).toBe('Monitor closely');

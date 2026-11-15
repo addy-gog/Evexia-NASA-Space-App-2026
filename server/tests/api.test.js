@@ -133,13 +133,23 @@ describe('crew status (flight surgeon)', () => {
   it('lists 5 crew with profile, portrait and status from their latest logs', async () => {
     const res = await sx.get('/api/crew');
     expect(res.body.crew).toHaveLength(5);
-    expect(res.body.crew[0]).toMatchObject({ id: 'c1', name: 'Cdr. Ada Okafor', avatar: '/avatars/c1.svg', bloodType: 'O+' });
-    expect(res.body.crew[0].age).toBeGreaterThan(30);
+    const c1 = res.body.crew.find((c) => c.id === 'c1');
+    expect(c1).toMatchObject({ name: 'Cdr. Ada Okafor', avatar: '/avatars/c1.svg', bloodType: 'O+' });
+    expect(c1.age).toBeGreaterThan(30);
     expect(res.body.crew.find((c) => c.id === 'c5').severities.temp).toBe('amber');
     const c4 = res.body.crew.find((c) => c.id === 'c4');
     expect(c4.lastLogAt).toBeTruthy();
     expect(c4.severities.hr).toBe('green');
     expect(c4.values.hr.ts).toBeTruthy();
+  });
+  it('returns the crew as an IITT triage queue: highest priority first, with tier, ABCDE domain and target time', async () => {
+    const { crew } = (await sx.get('/api/crew')).body;
+    const priorities = crew.map((c) => c.triage.priority);
+    expect(priorities).toEqual([...priorities].sort((a, b) => b - a));
+    const c5 = crew.find((c) => c.id === 'c5'); // temperature amber in the seed
+    expect(c5.triage).toMatchObject({ tier: 'amber', target: 'Within 60 min' });
+    expect(c5.triage.top).toMatchObject({ letter: expect.any(String), label: expect.any(String) });
+    for (const c of crew) if (c.triage.tier && c.triage.tier !== 'green') expect(c.score).toBeLessThanOrEqual(c.triage.cap);
   });
 });
 

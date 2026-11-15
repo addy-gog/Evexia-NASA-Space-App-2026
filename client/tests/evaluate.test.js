@@ -107,8 +107,12 @@ describe('history series and weekly summary', () => {
   it('daily score series covers each day with the score at its end', () => {
     const series = dailyScoreSeries(logs, ctx, NOW - 6 * DAY_MS, NOW);
     expect(series).toHaveLength(7);
-    expect(series[0].score).toBe(100);
-    expect(series.at(-1).score).toBe(92); // HR amber only
+    // All green: 85–100 depending on how centred each reading is (IITT/ABCDE scoring, lib/triage.js).
+    expect(series[0].score).toBeGreaterThanOrEqual(85);
+    expect(series[0].band).toBe('Mission ready');
+    // Heart rate amber only: circulation (ABCDE C) amber ceiling is 76.
+    expect(series.at(-1).score).toBeLessThanOrEqual(76);
+    expect(series.at(-1).band).toBe('Monitor closely');
   });
   it('weekly summary groups by week (newest first) with averages and alert counts', () => {
     const weeks = weeklySummary(logs, ctx);

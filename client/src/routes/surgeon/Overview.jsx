@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useHealthStore } from '../../store/useHealthStore.js';
 import { api } from '../../lib/api.js';
-import { INDICATORS } from '../../config/thresholds.js';
+import { INDICATORS, TRIAGE } from '../../config/thresholds.js';
 import { worstOf } from '../../lib/severity.js';
 import { formatDate, relativeTime } from '../../lib/format.js';
 import { StatusBadge, StatusIcon, SEVERITY_META } from '../../components/Status.jsx';
@@ -25,10 +25,26 @@ function ScoreMini({ score, band }) {
 
 const fmt = (id, v) => (v == null ? '—' : id === 'temp' || id === 'sleep' ? Number(v).toFixed(1) : id === 'radiation' ? Number(v).toFixed(2) : v);
 
-function CrewCard({ c }) {
+function TriageLine({ t, position }) {
+  if (!t?.tier) return null;
+  const tier = TRIAGE.tiers[t.tier];
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="triage-line" data-tier={t.tier} data-priority={t.priority}>
+      <span className="num rounded-full bg-ink/[0.06] px-2 py-0.5 font-bold text-ink" aria-label={`Queue position ${position}`}>#{position}</span>
+      <span className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-bold" style={{ background: SEVERITY_META[t.tier].bg, color: SEVERITY_META[t.tier].fg, boxShadow: `inset 0 0 0 1px ${SEVERITY_META[t.tier].line}` }}>
+        IITT {tier.colour} · {tier.target}
+      </span>
+      {t.top && <span className="font-semibold text-ink-2">ABCDE {t.top.letter} · {t.top.label}</span>}
+      {t.flags > 1 && <span className="text-ink-3">{t.flags} flags</span>}
+    </div>
+  );
+}
+
+function CrewCard({ c, position }) {
   const overall = Object.keys(c.severities).length ? worstOf(Object.values(c.severities)) : null;
   return (
-    <article className="hud-panel flex flex-col gap-4" data-testid={`crew-card-${c.id}`} data-severity={overall ?? 'none'}>
+    <article className="hud-panel flex w-full flex-col gap-4" data-testid={`crew-card-${c.id}`} data-severity={overall ?? 'none'}>
+      <TriageLine t={c.triage} position={position} />
       <div className="flex items-center gap-3.5">
         <Avatar src={c.avatar} name={c.name} size={64} label={`Portrait of ${c.name}`} />
         <div className="min-w-0 flex-1">
@@ -111,6 +127,8 @@ export default function SurgeonOverview() {
   const open = (esc ?? []).filter((e) => e.status !== 'reviewed');
   const emergencies = open.filter((e) => e.priority === 'emergency').length;
   const avatarOf = Object.fromEntries(list.map((c) => [c.id, c.avatar]));
+  // Triage queue: the server already sends this order; sorting again keeps it right if it ever does not.
+  const queue = [...list].sort((a, b) => (b.triage?.priority ?? 0) - (a.triage?.priority ?? 0) || (a.score ?? 101) - (b.score ?? 101));
   const first = (user?.name || '').replace(/^Dr\.\s*/, '').split(' ')[0];
 
   return (
@@ -151,15 +169,20 @@ export default function SurgeonOverview() {
 
       <div className="flex flex-wrap items-start gap-6">
         <section aria-labelledby="crew-h" className="min-w-0 flex-[2_1_620px]">
-          <h2 id="crew-h" className="hud-title mb-3">Crew</h2>
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h2 id="crew-h" className="hud-title">Crew triage queue</h2>
+            <p className="text-xs text-ink-3">IITT colour first (red, yellow, green), then ABCDE: airway/breathing, circulation, disability, exposure, behaviour.</p>
+          </div>
           {crew === null ? (
             <p className="text-ink-3" role="status">Loading crew…</p>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2" data-testid="crew-grid">
-              {list.map((c) => (
-                <CrewCard key={c.id} c={c} />
+            <ol className="grid gap-4 md:grid-cols-2" data-testid="crew-grid" aria-label="Crew in triage order, most urgent first">
+              {queue.map((c, i) => (
+                <li key={c.id} className="flex min-w-0">
+                  <CrewCard c={c} position={i + 1} />
+                </li>
               ))}
-            </div>
+            </ol>
           )}
         </section>
         <section aria-labelledby="inbox-h" className="min-w-0 flex-[1_1_340px]">

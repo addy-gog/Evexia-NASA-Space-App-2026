@@ -19,6 +19,7 @@ import {
   SEVERITY_RANK,
 } from './severity.js';
 import { computeScore } from './score.js';
+import { rankOf, weightOf } from './triage.js';
 import { correlateHazards } from './hazards.js';
 
 export const DAY_MS = 86_400_000;
@@ -161,7 +162,8 @@ export function evaluateCurrent(logs = [], ctx = {}, now = Date.now()) {
   const hazards = correlateHazards(results, { daysSinceContact, delaySeconds: ctx.delaySeconds || 0, cumulative });
   const alerts = INDICATORS.filter((m) => results[m.id] && results[m.id].severity !== 'green')
     .map((m) => ({ id: m.id, meta: m, result: results[m.id] }))
-    .sort((a, b) => SEVERITY_RANK[b.result.severity] - SEVERITY_RANK[a.result.severity] || b.meta.weight - a.meta.weight);
+    // IITT colour first, then the ABCDE primary survey (airway/breathing, circulation, disability, exposure, behaviour).
+    .sort((a, b) => SEVERITY_RANK[b.result.severity] - SEVERITY_RANK[a.result.severity] || (rankOf(a.id)?.rank ?? 9) - (rankOf(b.id)?.rank ?? 9) || weightOf(b.id) - weightOf(a.id));
   const latest = sortLogs(logs).filter((l) => tsOf(l) <= new Date(now).getTime()).at(-1) ?? null;
 
   return {

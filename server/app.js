@@ -11,7 +11,7 @@ import { validateReading } from '../client/src/lib/severity.js';
 import { evaluateCurrent } from '../client/src/lib/evaluate.js';
 import { validateEscalationPayload } from '../client/src/lib/escalation.js';
 import { validateTelemetryPayload } from '../client/src/lib/telemetry.js';
-import { ENVIRONMENTS, READING_FIELDS } from '../client/src/config/thresholds.js';
+import { ENVIRONMENTS, READING_FIELDS, TRIAGE } from '../client/src/config/thresholds.js';
 import { answerQuestion, getAssistantConfig, normaliseImage } from './lib/assistant.js';
 import { getSpaceWeather } from './lib/spaceWeather.js';
 import { ageOn } from './lib/people.js';
@@ -109,6 +109,18 @@ export function createApp({
       lastLogAt: s.latestLog?.ts ?? null,
       score: s.score.score,
       band: s.score.band?.label ?? null,
+      // IITT + ABCDE triage for the flight surgeon queue (client/src/lib/triage.js).
+      triage: {
+        tier: s.score.triage.tier,
+        priority: s.score.triage.priority,
+        target: s.score.triage.tier ? TRIAGE.tiers[s.score.triage.tier].target : null,
+        top: s.score.triage.top
+          ? { id: s.score.triage.top.id, severity: s.score.triage.top.severity, rank: s.score.triage.top.rank.rank, letter: s.score.triage.top.rank.letter, label: s.score.triage.top.rank.label }
+          : null,
+        flags: s.score.triage.flags.length,
+        cap: s.score.cap,
+        capReason: s.score.capReason,
+      },
       severities: Object.fromEntries(Object.entries(s.results).map(([k, v]) => [k, v.severity])),
       reasons: Object.fromEntries(Object.entries(s.results).map(([k, v]) => [k, v.reason])),
       values: Object.fromEntries(Object.entries(s.snapshot).map(([k, v]) => [k, { value: v.value, ts: v.ts, stale: v.stale, source: v.source, device: v.device }])),
@@ -166,7 +178,10 @@ export function createApp({
 
   // ---------- Crew (flight surgeon) ----------
   api.get('/crew', requireRole('surgeon'), (_req, res) => {
-    res.json({ crew: repo.listCrew().map((c) => ({ ...profileOf(c), ...statusOf(c.id) })) });
+    // Triage queue order: highest IITT priority first (red before amber before green, then ABCDE rank, then flag count).
+    const crew = repo.listCrew().map((c) => ({ ...profileOf(c), ...statusOf(c.id) }));
+    crew.sort((a, b) => b.triage.priority - a.triage.priority || (a.score ?? 101) - (b.score ?? 101));
+    res.json({ crew });
   });
 
   api.get('/crew/:id', requireAuth, (req, res) => {
