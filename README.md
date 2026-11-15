@@ -5,7 +5,8 @@
 **Crew health decision support that knows where you are, how far Earth is, what normal looks like *for you*, and what your wearables are saying right now.**
 
 ![Build](https://img.shields.io/badge/build-passing-22c55e)
-![Tests](https://img.shields.io/badge/tests-unit%20%7C%20api%20%7C%20e2e%20%7C%20axe-38bdf8)
+![Tests](https://img.shields.io/badge/tests-192%20unit%20%7C%2083%20api%20%7C%20Playwright%20e2e-38bdf8)
+![PWA](https://img.shields.io/badge/PWA-offline--first%20%7C%20IndexedDB-10b981)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 ![NASA Space Apps 2026](https://img.shields.io/badge/NASA%20Space%20Apps-2026-0b3d91)
 
@@ -61,7 +62,8 @@ Evexia is a NASA-style crew health console. Every reading is a **timestamped log
 | | Feature | What it does |
 |---|---|---|
 | ⌚ | **Live wearable telemetry** | Pairs with real Bluetooth health devices (heart-rate straps and watches, thermometers, blood-pressure cuffs) and accepts real-time data from device gateways through an API. Samples stream live to the screen and **sync to the log** to update the evaluation. |
-| 📡 | **Comms-delay autonomy** | The Earth-link delay changes behaviour. Above 5 min the **self-care protocol comes first** and escalations say "message will arrive in X min". Short delay recommends escalating amber findings early. |
+| 📡 | **Store-and-forward Earth link** | Realistically simulates deep-space radio latency (up to 20 min one-way) and orbital blackouts. Escalation reports follow a 5-step journey (`written` → `waiting` → `in-transit` → `arrived` → `replied`). Flight surgeons reply from Earth with timestamped transmission tracking. |
+| 💾 | **Offline-first outbox & PWA** | Works 100% without an internet connection or onboard server. An IndexedDB outbox (Dexie) queues reports with client-side unique IDs, auto-syncing when connectivity resumes. 3D anatomy bodies are runtime-cached, cutting first load from 28 MB to 2.7 MB. |
 | ☢️ | **Real radiation science** | Dosimeter readings are logged as measured **absorbed dose (mGy)** and converted to estimated **effective dose (mSv)** for NASA's limits (600 mSv career, 250 mSv per solar event). The app shows **real NASA RadLab measurements**, including Curiosity's solar storm on 20 May 2024, and **live solar events from NASA DONKI**. |
 | 🧬 | **Personal baseline + hazard correlation** | Readings can be judged against the astronaut's own pre-flight baseline. Rules link combinations to the five HRP hazards (e.g. short sleep + raised heart rate + 14+ days without a private conference → *isolation and confinement: behavioural health risk*). |
 
@@ -69,17 +71,18 @@ Evexia is a NASA-style crew health console. Every reading is a **timestamped log
 
 | Screen | What you get |
 |---|---|
-| **Dashboard** | Current status as of now: 3D body, six indicator cards (value, status, **when and how it was measured**, sparkline), health score, latest alerts, live-wearable strip, cumulative and solar-event dose, hazard insights and the latest log entries. Readings older than 36 h are flagged "out of date" and not counted. A red finding offers **Emergency mode**. |
+| **Console / Dashboard** | Current status as of now: 3D body, indicator cards (value, status, **when and how it was measured**, slider, live preview), health score, latest alerts, live-wearable strip, cumulative and solar-event dose, hazard insights, Earth link status pill and latest log entries. A red finding offers **Emergency mode**. |
 | **Log Readings** | **Date and time** (defaults to now; back-dating allowed, future rejected) with mission day, then each indicator with a number field **and** slider kept in sync, live status preview, the last logged value, inline validation, a **details** field (symptoms, activity, context), the solar-event flag and recent entries. |
-| **History** | Trends over the **past week, 2 weeks, 4 weeks or all**: daily health score, one chart per indicator with green/amber/red bands and shape-coded points, a **weekly summary** table (averages and amber/red counts), the full **log table** (date, time, mission day, source/device, values with status, details), a source filter, delete and **CSV export**. |
+| **History** | Trends over the **past week, 2 weeks, 4 weeks or all**: daily health score, one chart per indicator with green/amber/red bands and shape-coded points, a **weekly summary** table, and the **redesigned log table** (one column per vital reading for easy day-to-day comparison: `Oxygen`, `Heart rate`, `BP`, `Glucose`, `Temp`, `Sleep`, `Radiation`, plus `Source` with device tags, `Details`, delete action and CSV export). |
+| **Earth link (Comms)** | Deep-space communications dashboard: real-time light-speed delay, **Link up / Blackout toggle**, speed multiplier (Real-time, 30× demo speed, or Instant test mode), and **5-step store-and-forward report journey** tracking from initial draft to flight surgeon reply. |
 | **Live Telemetry** | Live tiles per metric with time, device and status; stream status; **Sync to log now** with a preview of exactly what will be logged; **auto-sync** every 15/30/60 min; **Bluetooth pairing**; gateway API instructions; devices seen. |
 | **Alerts and Guidance** | Each alert: severity, meaning, why it matters in spaceflight, recommended actions, self-care protocol (first when delay is long), countermeasure, sources, **Escalate to flight surgeon**. |
 | **Emergency mode** | One tap from the header. Earth-link timing, current readings, situation checklists (cardiac, unresponsive crewmate, low blood sugar, fever or hypothermia, radiation storm) and a **priority emergency report**; ticked steps go in as "actions taken". |
 | **NASA Data** | Live DONKI solar particle events and flares, the real Curiosity RAD storm chart, measured dose by environment (ISS, lunar orbit, Mars surface), the published limits Evexia uses, and **what is not verified**. |
-| **Escalation report** | Structured report with each reading's **measurement time and source**, severities, hazard insights, dose estimates, actions and note. Preview, copy, **.txt**, **PDF**, send. |
+| **Escalation report** | Structured report with each reading's **measurement time and source**, severities, hazard insights, dose estimates, actions and note. Preview, copy, **.txt**, **PDF**, send to Earth link queue. |
 | **Measurement Guide** | Per indicator: what it is, why it matters in space, on-board device, steps, normal range, when to worry, sources. |
-| **Flight Surgeon** | Crew status from each member's latest logs, last-log time, incoming escalations (emergencies first), mark reviewed and notes. |
-| **Mission & Settings** | Environment, Earth-link delay, crew member, mission start date, last private conference, prior career dose, telemetry key, personal baseline, accessibility. |
+| **Flight Surgeon** | Ground-station clinical overview: crew triage queue sorted by severity (IITT priority red/yellow/green), individual crew member cards with live vitals, escalation inbox with on-board vs arrival timestamps, and reply transmission. |
+| **Mission & Settings** | Environment, Earth-link delay, crew member, mission start date, last private conference, prior career dose, telemetry key, personal baseline, accessibility (dark/light, high-contrast, text sizing). |
 | **Assistant** | Docked chat. Claude via the server, or **Offline guidance mode** (rule-based). |
 
 ## 4. How it works
@@ -93,12 +96,15 @@ flowchart LR
   LIVE -->|Sync to log / auto-sync| L
   L --> E[evaluate.js<br/>latest value per indicator,<br/>stale check, sleep history]
   E --> S[severity.js + thresholds.js<br/>mGy → mSv, baseline, environment]
-  S --> SC[score.js] & HZ[hazards.js] & BODY[3D / 2D body]
-  S --> AL[Alerts + comms.js] --> REP[Escalation / emergency report]
-  L --> H[History: daily score,<br/>trends, weekly summary]
+  S --> SC[score.js] & HZ[hazards.js] & BODY[3D body]
+  S --> AL[Alerts + comms.js] --> REP[Escalation report]
+  REP --> OUTBOX[(IndexedDB Outbox<br/>Dexie offline queue)]
+  OUTBOX -->|Auto-sync when online| LINK[Earth Link Simulator<br/>Latency & Blackout Queue]
+  LINK -->|Delayed arrival| SURG[Flight Surgeon View]
+  SURG -->|Doctor reply| LINK
+  L --> H[History: daily score,<br/>trends, aligned log grid]
   DONKI[NASA DONKI] --> ND[NASA Data screen]
   RAD[NASA RadLab] --> ND
-  REP -->|POST /api/escalations| SURG[Flight surgeon view]
 ```
 
 All decision logic is in pure, unit-tested modules in `client/src/lib/` (`severity`, `score`, `hazards`, `comms`, `evaluate`, `telemetry`, `escalation`). The server imports the same modules, so it validates data and builds assistant context with exactly the rules the crew sees. The client is **offline-first**: logs save locally immediately, are marked "Not yet sent to ground", and sync when the link returns.
@@ -198,39 +204,50 @@ Reduced motion gives a static glow; software WebGL is detected and frame-capped;
 
 Above 5 minutes: self-care protocol first, escalation marked "message will arrive in X min", emergency mode says not to wait for a reply.
 
+### Store-and-forward Earth link simulator
+Inspired by NASA's Delay/Disruption Tolerant Networking (DTN) architecture, Evexia models deep-space communications with realistic latency and intermittent connectivity:
+- **Link Up / Blackout Switch**: Simulate direct line-of-sight vs planetary/orbital occlusion. During a blackout, outgoing reports wait in onboard storage; packets already in flight continue moving.
+- **Speed Multiplier**: Toggle between **Real time** (true light-speed propagation, e.g. 12 minutes to Mars), **Demo mode** (30× accelerated, so a 12-minute transit takes 24 seconds), or **Instant** for automated testing.
+- **Five-stage report lifecycle**:
+  1. `Written on board`: Logged and signed by crew.
+  2. `Waiting for link`: Held in device outbox if link is down or server unreachable.
+  3. `Travelling to Earth`: In transit over deep-space link with live countdown.
+  4. `Arrived on Earth`: Received and acknowledged by mission control.
+  5. `Surgeon replied`: Flight surgeon response travels back to crew and marks the loop closed.
+
 ## 11. AI assistant
 
 `POST /api/assistant` calls the **Claude API** through the official Anthropic SDK (key server-side only, `ANTHROPIC_MODEL` default `claude-sonnet-5-5`, capped `max_tokens`, low effort, rate-limited). The server recomputes severities from raw readings and sends environment, delay, mission day and per-indicator status, including the mGy → mSv conversion. Safety rules: plain language, practical self-care, **never diagnose**, **always escalate red**, respect comms delay, flag emergencies, no invented numbers. Refusals, missing key, network or API errors all fall back to the **rule-based guidance** (badge: *Offline guidance mode*).
 
 ## 12. Accessibility
 
-44 px touch targets; high-contrast theme; three text sizes; full keyboard navigation with visible focus and a skip link; landmarks and labels; status by colour + shape + text everywhere (cards, tables, charts, body); reduced motion; screen-reader body summary and chart summaries; `aria-live` updates. **axe-core: zero serious or critical violations** on all 11 screens, in high-contrast mode and with the assistant open; no horizontal scroll at 360/768/1440 px.
+44 px touch targets; high-contrast theme; three text sizes; full keyboard navigation with visible focus and a skip link; landmarks and labels; status by colour + shape + text everywhere (cards, tables, charts, body); reduced motion; screen-reader body summary and chart summaries; `aria-live` updates. **axe-core: zero serious or critical violations** on all screens, including the redesigned wide log table, in high-contrast mode and with the assistant open; no horizontal scroll at 360/768/1440 px.
 
 ## 13. Tech stack and project structure
 
-**Frontend:** React 18, Vite 5, Tailwind CSS 3, React Router 6, Zustand 4, Recharts 2, three.js + @react-three/fiber + drei, Web Bluetooth, EventSource, jsPDF (lazy).
-**Backend:** Node.js + Express 4, Server-Sent Events, express-rate-limit, Anthropic TypeScript SDK, SQLite via **better-sqlite3** (automatic fallback to `node:sqlite`).
-**Testing:** Vitest (unit + API with supertest), Playwright (e2e), @axe-core/playwright.
+**Frontend:** React 18, Vite 5, Tailwind CSS 3, React Router 6, Zustand 4, Recharts 2, three.js + @react-three/fiber + drei, Dexie 4 (IndexedDB persistent outbox), vite-plugin-pwa (Workbox offline service worker), Web Bluetooth, EventSource, jsPDF (lazy).  
+**Backend:** Node.js + Express 4, Server-Sent Events, express-rate-limit, Anthropic TypeScript SDK, SQLite via **better-sqlite3** (automatic fallback to `node:sqlite`).  
+**Testing:** Vitest (unit + API with supertest), Playwright (e2e, comms, pwa), @axe-core/playwright.
 
 ```
 evexia/
 ├─ README.md · TEST_REPORT.md · .env.example · render.yaml · playwright.config.js · LICENSE
 ├─ client/src/
-│  ├─ routes/       Dashboard, LogReadings, History, Telemetry, Alerts, Guide, Emergency,
-│  │                NasaData, Settings, Surgeon, Credits
+│  ├─ routes/       Dashboard, LogReadings, History, Comms, Telemetry, Alerts, Guide, Emergency,
+│  │                NasaData, Settings, Surgeon (Overview, CrewDetail, Escalations), Credits
 │  ├─ components/   Body3D, Body2D, BodyView, IndicatorCard, LogTable, TrendChart, ScoreGauge,
 │  │                AlertCard, HazardPanel, EscalationDialog, AssistantPanel, Layout, …
 │  ├─ lib/          severity, score, hazards, comms, evaluate, telemetry, bluetooth,
-│  │                escalation, ruleAssistant, format, api
+│  │                escalation, outbox (Dexie), ruleAssistant, format, api
 │  ├─ hooks/        useTelemetry (SSE stream, auto-sync)
 │  ├─ config/thresholds.js · content/ (guide, guidance, hazards) · store/useHealthStore.js
-│  └─ tests/        Vitest unit tests (client/tests)
+│  └─ tests/        Vitest unit tests (outbox, evaluate, severity, score, triage, etc.)
 ├─ server/
-│  ├─ index.js · app.js · seed.js · db/ (schema, repository) · lib/ (assistant, spaceWeather, sampleLogs)
+│  ├─ index.js · app.js · seed.js · db/ (schema, repository) · lib/ (assistant, spaceWeather, sampleLogs, commsLink)
 │  ├─ scripts/      fetch-nasa-data.js (RadLab + DONKI), simulate-wearable.js
 │  ├─ data/nasa/    radlab-msl-mars-may2024.json, radlab-reference.json, donki-snapshot.json
-│  └─ tests/api.test.js
-├─ e2e/             evexia.spec.js, a11y.spec.js, screenshots.spec.js, global-setup.js
+│  └─ tests/        api.test.js, link.test.js
+├─ e2e/             evexia.spec.js, comms.spec.js, pwa.spec.js, a11y.spec.js, screenshots.spec.js
 └─ docs/screenshots/
 ```
 
@@ -279,23 +296,25 @@ Then open the public URL in a private window and request **FortiGuard Web Filter
 ## 16. Testing
 
 ```bash
-npm run test:unit     # 133 tests: thresholds, severity, mGy→mSv, score, hazards, comms, log evaluation,
-                      #            history series, BLE parsers, telemetry sync, assistant, reports
-npm run test:api      # 46 tests: every route incl. telemetry ingest/auth, SSE stream, DONKI (mocked + fallback), RadLab
-npm run test:e2e      # builds the client, starts a fresh single-host server, runs e2e + axe + responsive + perf
+npm run test:unit     # 192 tests: thresholds, severity, mGy→mSv, score, hazards, comms, log evaluation,
+                      #            history series, BLE parsers, telemetry sync, assistant, outbox, triage
+npm run test:api      # 83 tests: every route incl. link latency simulator, outbox deduplication,
+                      #           telemetry ingest/auth, SSE stream, DONKI (mocked + fallback), RadLab
+npm run test:e2e      # builds the client, starts single-host server, runs e2e + comms + pwa + axe
 ```
 
-Every e2e test also fails on any browser console error. On Windows the tests use full Chromium with the real GPU (`E2E_GPU=0` forces software WebGL). Regenerate screenshots with `SCREENSHOTS=1 npx playwright test e2e/screenshots.spec.js`. See **[TEST_REPORT.md](TEST_REPORT.md)**.
+Every e2e test fails on any browser console error. On Windows the tests run with Chromium. Regenerate screenshots with `$env:SCREENSHOTS="1"; npx playwright test e2e/screenshots.spec.js`. See **[TEST_REPORT.md](TEST_REPORT.md)**.
 
 ## 17. Screenshots
 
 | | |
 |---|---|
-| ![Dashboard amber](docs/screenshots/dashboard-amber.png) Status: amber heart, vessels, brain | ![Dashboard red](docs/screenshots/dashboard-red.png) Solar particle event and high glucose |
-| ![Live telemetry](docs/screenshots/telemetry.png) Live wearable telemetry and Sync to log | ![History](docs/screenshots/history.png) History: weekly trends and log |
-| ![Log readings](docs/screenshots/log-readings.png) Log entry with date, time and details | ![Alerts](docs/screenshots/alerts.png) Alerts: self-care first on Mars transit |
-| ![NASA data](docs/screenshots/nasa-data.png) Real NASA data: DONKI and Curiosity RAD | ![Emergency](docs/screenshots/emergency.png) Emergency mode |
-| ![Guide](docs/screenshots/guide.png) Measurement Guide | ![Simple view](docs/screenshots/simple-view.png) 2D simple view |
+| ![Dashboard amber](docs/screenshots/dashboard-amber.png)<br/>**Console Dashboard (Amber Alert)**: Spaceflight vitals, 3D body markers, Earth link pill | ![Dashboard red](docs/screenshots/dashboard-red.png)<br/>**Console Dashboard (Red / Solar Event)**: Critical glucose, dosimeter alarm, emergency link |
+| ![Earth link comms](docs/screenshots/comms.png)<br/>**Earth Link & Store-and-Forward**: Deep-space latency, blackout switch, 5-stage report journey | ![History log](docs/screenshots/history-log.png)<br/>**History (Redesigned Log Table)**: One aligned column per reading, warning badges, source details |
+| ![History trends](docs/screenshots/history.png)<br/>**History (Trends & Scores)**: 14-day trends with nominal/caution bands, shape-coded data points | ![Flight surgeon](docs/screenshots/surgeon.png)<br/>**Flight Surgeon View**: Crew triage queue, individual vital snapshots, escalation replies |
+| ![Log readings](docs/screenshots/log-readings.png)<br/>**Log Readings**: 7 vital inputs with sliders, live status previews and notes | ![Live telemetry](docs/screenshots/telemetry.png)<br/>**Live Wearables**: Bluetooth BLE stream, gateway ingest, and Sync to Log |
+| ![Alerts](docs/screenshots/alerts.png)<br/>**Alerts & Guidance**: Self-care protocol first under Mars transit delay, hazard insights | ![Emergency](docs/screenshots/emergency.png)<br/>**Emergency Mode**: Rapid action checklists, priority telemetry and ground escalation |
+| ![NASA data](docs/screenshots/nasa-data.png)<br/>**Real NASA Science**: Live DONKI space weather and Curiosity RAD 2024 storm data | ![Guide](docs/screenshots/guide.png)<br/>**Measurement Guide**: Standard procedures, clinical limits, and on-board hardware steps |
 
 ## 18. Limitations
 
@@ -305,12 +324,22 @@ Every e2e test also fails on any browser console error. On Windows the tests use
 - Web Bluetooth works in Chrome/Edge (desktop, Android) only and was verified with byte-level parser tests, not with physical devices during the build. Proprietary-only devices need a gateway.
 - The brief's "HR 108 → amber" conflicts with its own table (> 100 = red); Evexia follows the table.
 - The Claude path is verified with mocked SDK responses and an unreachable-endpoint test, not live (no key during the build).
-- No authentication on the flight-surgeon view; telemetry auth is a shared key (demo scope).
+- Telemetry ingest authentication is a shared gateway key (demo scope).
 - The sample history (21 days) is generated and tagged *Sample data*; delete it from History or seed with `SEED_DAYS=0`.
 
 ## 19. Roadmap
 
-Per-device pairing records and wearable vendor integrations (Apple HealthKit, Garmin, Oura via gateway) · SpO₂, HRV and skin temperature · crew authentication and ground sync · mood and cognitive checks · anatomy GLB · multi-language UI · PWA with background sync.
+**Shipped in v1.1:**
+- PWA with offline Service Worker and runtime caching for 3D body models (saving ~25 MB on first visit).
+- Offline-first IndexedDB outbox (Dexie) with client-side unique identifiers and automatic link reconnect sync.
+- Store-and-forward Earth link communication simulator (light-speed latency, blackout toggle, 5-step report journey).
+- Redesigned History log table with aligned columns for each vital reading and severity badges.
+- Crew and Flight Surgeon authentication with distinct permissions and full crew triage overview.
+
+**Future iterations:**
+- Hardware pairing records and third-party health integrations (Apple HealthKit, Garmin Health, Oura API via gateway).
+- Direct SpO₂, HRV and continuous skin temperature streaming.
+- Multi-language crew interface and localized emergency checklists.
 
 ## 20. Sources and references
 
