@@ -184,7 +184,7 @@ export default function NasaData() {
               <tr className="border-b border-line/60"><th scope="row" className="py-2">Recommended sleep period</th><td className="num">{THRESHOLDS.sleep.recommendedSleepPeriod} h</td><td>NASA-STD-3001</td></tr>
               <tr className="border-b border-line/60"><th scope="row" className="py-2">Hypothermia (red)</th><td className="num">below 35.0 °C</td><td>NASA-STD-3001</td></tr>
               <tr className="border-b border-line/60"><th scope="row" className="py-2">Fasting glucose lab normal range (green)</th><td className="num">65–99 mg/dL</td><td>Inspiration4 crew blood results, NASA OSDR</td></tr>
-              <tr><th scope="row" className="py-2">Mars one-way communication delay</th><td className="num">up to 20 min</td><td>NASA (team research)</td></tr>
+              <tr><th scope="row" className="py-2">Mars one-way communication delay</th><td className="num">up to 20 min</td><td>NASA distance-from-Earth hazard page</td></tr>
             </tbody>
           </table>
         </div>
@@ -194,8 +194,7 @@ export default function NasaData() {
         <h2 id="unv-h" className="text-lg font-bold">What is not verified</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
           <li>NASA publishes no green/amber/red limits for heart rate, blood pressure, glucose (upper bands) or fever, and no open astronaut vital-sign data. Those bands are demonstration values, labelled “to be verified”.</li>
-          <li>The NASA-STD-3001 figures and the Inspiration4 glucose range come from team research; their page URLs are still to be verified.</li>
-          <li>Quality factors converting mGy to mSv are approximate (to be verified); Mars-transit absorbed dose (~0.48 mGy/day) is a literature value not opened during the build.</li>
+          <li>Quality factors converting mGy to mSv are approximate (to be verified). The Mars-transit absorbed dose of 0.38 mGy/day is a RadLab measurement from the ExoMars TGO cruise to Mars in 2016, not from a crewed spacecraft.</li>
           <li>The Mars-surface figure of 0.67 mSv/day, the Chang’E-4 lunar figure and the ISS daily range from the research notes were not opened. The app uses RadLab measurements instead.</li>
           <li>No source yet explains why glucose matters specifically in flight; the guide text on this is marked accordingly.</li>
         </ul>

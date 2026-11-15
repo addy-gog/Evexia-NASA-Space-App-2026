@@ -99,7 +99,8 @@ Rules you must always follow:
 - Link findings to the relevant spaceflight hazard (radiation, isolation and confinement, distance from Earth, gravity fields, hostile closed environments) when useful.
 - If symptoms sound like an emergency (chest pain, fainting, confusion, trouble breathing), tell them to alert the crew immediately.
 - Base facts on the <evexia_knowledge> pack and on tool results, and name the source in brackets when you use one, for example [NASA-STD-3001] or [NASA OSDR]. If neither covers the question, say so.
-- Keep answers short: at most about 180 words, using short paragraphs or bullet points. Do not invent numbers or citations.`;
+- Keep answers short: at most about 180 words, using short paragraphs or bullet points. Do not invent numbers or citations.
+- Write plain text only, because the chat panel does not render Markdown: no ** or # symbols. Start list lines with "- ".`;
 
 export function getAssistantConfig(env = process.env) {
   return {

@@ -20,31 +20,31 @@ export const SOURCES = {
     id: 'HRP_HAZARDS',
     label: 'NASA HRP – Human Research Program hazards (RIDGE)',
     url: 'https://www.nasa.gov/hrp/hazards/',
-    verified: false,
+    verified: true, // opened 14 Nov 2026
   },
   HRP_BODY: {
     id: 'HRP_BODY',
     label: 'NASA – The Human Body in Space (five hazards of human spaceflight)',
     url: 'https://www.nasa.gov/humans-in-space/the-human-body-in-space/',
-    verified: false,
+    verified: true, // opened 14 Nov 2026
   },
   STD3001: {
     id: 'STD3001',
-    label: 'NASA-STD-3001 Space Flight Human-System Standard (8.5 h sleep period; hypothermia below 35 °C)',
-    url: 'https://www.nasa.gov/ohcm/nasa-std-3001/',
-    verified: false, // figures from team research reading of the standard; URL to be verified
+    label: 'NASA-STD-3001 Vol. 1 Rev. C (8.5 h sleep period [V1 6001]; hypothermia below 35 °C)',
+    url: 'https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf',
+    verified: true, // full PDF read 14 Nov 2026
   },
   STD3001_RAD: {
     id: 'STD3001_RAD',
-    label: 'NASA-STD-3001 Vol. 1 – 600 mSv career effective dose; 250 mSv per solar particle event',
-    url: 'https://www.nasa.gov/ohcm/nasa-std-3001/',
-    verified: false,
+    label: 'NASA-STD-3001 Vol. 1 Rev. C – 600 mSv career effective dose [V1 4030]; 250 mSv per solar particle event [V1 4031]',
+    url: 'https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf',
+    verified: true, // full PDF read 14 Nov 2026
   },
   OSDR_I4: {
     id: 'OSDR_I4',
-    label: 'NASA OSDR – Inspiration4 crew blood results (glucose lab normal range 65–99 mg/dL)',
-    url: 'https://osdr.nasa.gov/bio/repo/',
-    verified: false, // dataset found by team research; study page URL to be verified
+    label: 'NASA OSDR OSD-575 – Inspiration4 crew blood results (glucose lab normal range 65–99 mg/dL)',
+    url: 'https://osdr.nasa.gov/bio/repo/data/studies/OSD-575',
+    verified: true, // data file downloaded and checked 14 Nov 2026; bundled in server/data/nasa/osdr
   },
   RADLAB: {
     id: 'RADLAB',
@@ -67,8 +67,8 @@ export const SOURCES = {
   SPACE_APPS: {
     id: 'SPACE_APPS',
     label: 'NASA Space Apps Challenge 2026 – challenge resources',
-    url: 'https://www.spaceappschallenge.org/',
-    verified: false,
+    url: 'https://www.spaceappschallenge.org/2026/challenges/health-monitoring-software/?tab=resources',
+    verified: true, // opened 14 Nov 2026
   },
   CLINICAL_REF: {
     id: 'CLINICAL_REF',
@@ -206,7 +206,7 @@ export const ENVIRONMENTS = {
     id: 'marsTransit',
     label: 'Mars transit',
     qualityFactor: 3.8,
-    measuredMGyPerDay: null, // no MSL cruise data in RadLab; literature ≈0.48 mGy/day (to be verified)
+    measuredMGyPerDay: 0.38, // Liulin-MO on ExoMars TGO, cruise to Mars, Apr–Sep 2016: mean of 4,326 readings (RadLab)
     radiationGreenBelowMsv: 1.9,
     delaySeconds: { min: 4 * 60, max: 20 * 60, default: 12 * 60 },
     autonomy: 'High',

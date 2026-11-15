@@ -11,8 +11,9 @@ const NAV = [
   { to: '/', label: 'Console', short: 'Console', icon: 'M3 12h4l3-8 4 16 3-8h4' },
   { to: '/log', label: 'Log Readings', short: 'Log', icon: 'M12 5v14M5 12h14' },
   { to: '/history', label: 'History', short: 'History', icon: 'M3 20h18M6 16l4-5 4 3 5-7' },
-  { to: '/telemetry', label: 'Live Telemetry', short: 'Live', icon: 'M2 12h4l3-8 4 16 3-8h6' },
   { to: '/alerts', label: 'Guidance', short: 'Guidance', icon: 'M12 3l10 18H2zM12 10v4M12 17.5v.5' },
+  // NASA Data sits in the main bar so judges and crew find the real data behind every threshold.
+  { to: '/data', label: 'NASA Data', short: 'NASA', icon: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18' },
 ];
 
 function NavIcon({ d }) {
@@ -89,7 +90,7 @@ function ProfileMenu() {
           </div>
           <nav aria-label="Account" className="flex flex-col pt-1">
             <Link className={item} to="/settings" onClick={() => setOpen(false)}>Mission &amp; Settings</Link>
-            <Link className={item} to="/data" onClick={() => setOpen(false)}>NASA Data</Link>
+            <Link className={item} to="/telemetry" onClick={() => setOpen(false)}>Live Telemetry</Link>
             <Link className={item} to="/guide" onClick={() => setOpen(false)}>Measurement guide</Link>
             <Link className={item} to="/credits" onClick={() => setOpen(false)}>Credits &amp; sources</Link>
             <button
@@ -117,11 +118,13 @@ function Header() {
   const alerts = useHealthStore((s) => s.status.alerts.length);
   return (
     <header className="z-30 border-b border-line bg-surface lg:sticky lg:top-0">
-      <div className="mx-auto flex max-w-page flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5 sm:px-6">
+      {/* Row 1: brand, main tabs, then Emergency + profile in the top-right corner.
+          Row 2: mission status. DOM order matches the visual order for keyboard users. */}
+      <div className="mx-auto flex max-w-page flex-wrap items-center gap-x-4 gap-y-2 px-4 pb-2 pt-2.5 sm:px-6">
         <Link to="/" className="flex min-h-touch items-center">
           <Wordmark />
         </Link>
-        <nav aria-label="Main" className="hidden flex-wrap gap-1 lg:flex">
+        <nav aria-label="Main" className="hidden flex-wrap gap-1 lg:ml-10 lg:flex xl:ml-16">
           {NAV.map((n) => (
             <NavLink
               key={n.to}
@@ -139,7 +142,13 @@ function Header() {
             </NavLink>
           ))}
         </nav>
-        <div className="ml-auto flex flex-wrap items-center gap-2.5">
+        <div className="ml-auto flex items-center gap-2.5">
+          <NavLink to="/emergency" className="btn-danger min-h-touch px-3 text-sm" data-testid="emergency-button">
+            Emergency
+          </NavLink>
+          <ProfileMenu />
+        </div>
+        <div className="flex basis-full flex-wrap items-center gap-2.5 lg:justify-end">
           <span className="pill font-mono" data-testid="header-day">MET · Day {day ?? '—'}</span>
           <span className="pill" data-testid="earth-link">
             <span className={`block h-2 w-2 rounded-full ${apiOnline === false ? 'bg-warn-dot' : 'blink bg-ok-dot'}`} aria-hidden="true" />
@@ -149,13 +158,9 @@ function Header() {
           <span className="sr-only" role="status" data-testid="connection-status" data-online={apiOnline !== false}>
             {apiOnline === false ? 'Ground link offline: local mode' : 'Ground link online'}
           </span>
-          <NavLink to="/emergency" className="btn-danger min-h-touch px-3 text-sm" data-testid="emergency-button">
-            Emergency
-          </NavLink>
           <div className="hidden sm:block">
             <TextSizeToggle />
           </div>
-          <ProfileMenu />
         </div>
       </div>
     </header>

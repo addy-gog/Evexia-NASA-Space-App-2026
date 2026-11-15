@@ -5,6 +5,7 @@ import { INDICATORS, TELEMETRY_METRICS, READING_FIELDS } from '../config/thresho
 import BodyView from '../components/BodyView.jsx';
 import LogTable from '../components/LogTable.jsx';
 import EscalationDialog from '../components/EscalationDialog.jsx';
+import RoutineCard from '../components/RoutineCard.jsx';
 import { StatusIcon } from '../components/Status.jsx';
 import {
   ReadingCard,
@@ -191,6 +192,7 @@ export default function Dashboard() {
 
         <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-5">
           <HealthScoreRing score={status.score} counts={counts} />
+          <RoutineCard logs={crewLogs} snapshot={storeStatus.snapshot} now={now} />
           <EarthLinkCard environment={environment} delaySeconds={delaySeconds} anyCritical={anyCritical} onSend={() => setEscalating(true)} sentInfo={sentInfo} />
           <HazardList results={status.results} hazards={status.hazards} delaySeconds={delaySeconds} />
         </div>
