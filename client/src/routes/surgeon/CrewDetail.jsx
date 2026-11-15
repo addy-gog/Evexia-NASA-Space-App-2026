@@ -98,6 +98,7 @@ export default function CrewDetail() {
   if (!data) return <p className="text-ink-3" role="status">Loading health record…</p>;
 
   const { profile: p, status: s, escalations, devices } = data;
+  const openEscalations = (escalations || []).filter((e) => e.status !== 'reviewed');
   const env = s.environment;
   const overall = Object.keys(s.severities).length ? worstOf(Object.values(s.severities)) : null;
   const facts = [
@@ -168,7 +169,11 @@ export default function CrewDetail() {
             data-testid={`crew-tab-${t.toLowerCase()}`}
           >
             {t}
-            {t === 'Escalations' && escalations.length > 0 && <span className="ml-1.5 rounded-full bg-surface-2 px-1.5 text-xs text-ink">{escalations.length}</span>}
+            {t === 'Escalations' && openEscalations.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-surface-2 px-1.5 text-xs text-ink" data-testid="open-escalations-badge">
+                {openEscalations.length}
+              </span>
+            )}
             {t === 'Devices' && devices.length > 0 && <span className="ml-1.5 rounded-full bg-surface-2 px-1.5 text-xs text-ink">{devices.length}</span>}
           </button>
         ))}

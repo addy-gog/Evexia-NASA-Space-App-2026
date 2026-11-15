@@ -64,8 +64,24 @@ export default function EscalationItem({ e, avatar, onSave, onReply, showCrew = 
         <textarea className="field mt-1 min-h-[64px] font-sans text-base" value={note} maxLength={2000} onChange={(ev) => setNote(ev.target.value)} />
       </label>
       <p className="mt-1 text-xs text-ink-3">Stays on Earth. Only your reply travels to the crew.</p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        <button type="button" className="btn-primary" onClick={() => onSave(e.id, { status: 'reviewed', note })}>Mark reviewed</button>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {e.status === 'reviewed' ? (
+          <>
+            <span className="inline-flex items-center gap-1.5 rounded-tile bg-ok-bg px-3 py-1.5 text-sm font-semibold text-ok-fg" data-testid="status-reviewed-indicator">
+              <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              Reviewed
+            </span>
+            <button type="button" className="btn-ghost text-xs text-ink-3 hover:text-ink" onClick={() => onSave(e.id, { status: 'open', note })}>
+              Reopen
+            </button>
+          </>
+        ) : (
+          <button type="button" className="btn-primary" onClick={() => onSave(e.id, { status: 'reviewed', note })}>
+            Mark reviewed
+          </button>
+        )}
         <button type="button" className="btn-ghost" onClick={() => onSave(e.id, { note })}>Save note</button>
       </div>
       {onReply && (

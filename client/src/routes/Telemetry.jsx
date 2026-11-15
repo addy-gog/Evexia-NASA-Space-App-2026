@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useHealthStore } from '../store/useHealthStore.js';
 import { TELEMETRY_METRICS } from '../config/thresholds.js';
@@ -60,6 +60,283 @@ function LiveTile({ metric, samples, latest, environment, now }) {
   );
 }
 
+const DEMO_DEVICES = [
+  {
+    id: 'sim-bio-harness',
+    name: 'NASA Bio-Harness MK-IV',
+    model: 'Zephyr / NASA BioHarness',
+    type: 'Chest Telemetry Strap',
+    image: '/devices/bio-harness.svg',
+    description: 'ECG heart rate, respiration rate, and skin temperature sensor with telemetry puck.',
+    metrics: ['hr', 'temp', 'spo2'],
+    channels: 'ECG · Respiration · Skin Temp',
+  },
+  {
+    id: 'sim-smartwatch',
+    name: 'Artemis Crew Smartwatch',
+    model: 'Artemis Chrono-Biometric',
+    type: 'Wrist Biometric Monitor',
+    image: '/devices/smartwatch.svg',
+    description: 'Optical pulse plethysmography (PPG), pulse oximetry (SpO2), and blood pressure estimation.',
+    metrics: ['hr', 'spo2', 'sys', 'dia', 'temp'],
+    channels: 'Optical PPG · SpO2 · Est. BP',
+  },
+];
+
+const PROFILES = [
+  {
+    id: 'nominal',
+    label: 'Nominal Rest',
+    tag: 'Normal',
+    badgeClass: 'bg-ok-bg text-ok-fg',
+    desc: 'Resting orbit baseline (normal vital signs)',
+    hr: 67,
+    spo2: 98,
+    temp: 36.7,
+    sys: 116,
+    dia: 74,
+  },
+  {
+    id: 'exercise',
+    label: 'EVA / Treadmill',
+    tag: 'Elevated',
+    badgeClass: 'bg-accent/20 text-accent-text',
+    desc: 'High exertion exercise protocol (elevated heart rate & temp)',
+    hr: 138,
+    spo2: 97,
+    temp: 37.3,
+    sys: 136,
+    dia: 84,
+  },
+  {
+    id: 'hypoxia',
+    label: 'Hypoxia / Low O₂',
+    tag: 'Alert',
+    badgeClass: 'bg-crit-bg text-crit-fg',
+    desc: 'Simulated low oxygen event (SpO2 drops into amber alert)',
+    hr: 104,
+    spo2: 89,
+    temp: 36.5,
+    sys: 122,
+    dia: 80,
+  },
+];
+
+function DemoWearablePanel() {
+  const crewId = useHealthStore((s) => s.crewId);
+  const telemetryKey = useHealthStore((s) => s.telemetryKey);
+  const addSamples = useHealthStore((s) => s.addSamples);
+  const setStreamState = useHealthStore((s) => s.setStreamState);
+  const showToast = useHealthStore((s) => s.showToast);
+
+  const [selectedDeviceId, setSelectedDeviceId] = useState(DEMO_DEVICES[0].id);
+  const [profileId, setProfileId] = useState(PROFILES[0].id);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const streamTimer = useRef(null);
+
+  const activeDevice = DEMO_DEVICES.find((d) => d.id === selectedDeviceId) || DEMO_DEVICES[0];
+  const activeProfile = PROFILES.find((p) => p.id === profileId) || PROFILES[0];
+
+  const stopStream = () => {
+    if (streamTimer.current) {
+      clearInterval(streamTimer.current);
+      streamTimer.current = null;
+    }
+    setIsStreaming(false);
+    setStreamState('disconnected');
+    showToast(`${activeDevice.name} disconnected.`, 'warn');
+  };
+
+  const startStream = () => {
+    setIsStreaming(true);
+    setStreamState('live');
+    showToast(`${activeDevice.name} connected. Streaming live telemetry.`, 'ok');
+  };
+
+  useEffect(() => {
+    if (!isStreaming) return;
+    const jitter = (val, range = 2) => val + (Math.random() - 0.5) * range;
+
+    const sendTick = () => {
+      const ts = new Date().toISOString();
+      const samples = [];
+      const hrVal = Math.round(jitter(activeProfile.hr, 3));
+      samples.push({ metric: 'hr', value: hrVal, ts });
+
+      if (activeDevice.metrics.includes('spo2')) {
+        const spo2Val = Math.min(100, Math.max(75, Math.round(jitter(activeProfile.spo2, 1.2))));
+        samples.push({ metric: 'spo2', value: spo2Val, ts });
+      }
+      if (activeDevice.metrics.includes('temp')) {
+        const tempVal = Number(jitter(activeProfile.temp, 0.2).toFixed(1));
+        samples.push({ metric: 'temp', value: tempVal, ts });
+      }
+      if (activeDevice.metrics.includes('sys')) {
+        const sysVal = Math.round(jitter(activeProfile.sys, 4));
+        const diaVal = Math.round(jitter(activeProfile.dia, 3));
+        samples.push({ metric: 'sys', value: sysVal, ts });
+        samples.push({ metric: 'dia', value: diaVal, ts });
+      }
+
+      const full = samples.map((s) => ({
+        ...s,
+        crewId,
+        deviceId: activeDevice.id,
+        deviceName: activeDevice.name,
+      }));
+      addSamples(full);
+      api
+        .postTelemetry(
+          {
+            crewId,
+            deviceId: activeDevice.id,
+            deviceName: activeDevice.name,
+            kind: 'simulated',
+            samples,
+          },
+          telemetryKey
+        )
+        .catch(() => {});
+    };
+
+    sendTick();
+    streamTimer.current = setInterval(sendTick, 2500);
+
+    return () => {
+      if (streamTimer.current) {
+        clearInterval(streamTimer.current);
+        streamTimer.current = null;
+      }
+    };
+  }, [isStreaming, activeDevice, activeProfile, crewId, telemetryKey, addSamples]);
+
+  useEffect(() => {
+    return () => {
+      if (streamTimer.current) clearInterval(streamTimer.current);
+    };
+  }, []);
+
+  return (
+    <section className="hud-panel" aria-labelledby="sim-wearable-h" data-testid="simulated-wearable-panel">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 id="sim-wearable-h" className="text-lg font-bold">Simulated astronaut wearable (instant demo)</h2>
+            <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent-text">No hardware required</span>
+          </div>
+          <p className="mt-1 text-sm text-ink-3">
+            Stream realistic telemetry directly into the HUD without physical Bluetooth hardware. Test real-time vitals graphs, automated sync to health logs, and surgeon telemetry.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={isStreaming ? stopStream : startStream}
+          className={`min-h-touch rounded-[10px] px-5 text-sm font-semibold transition-all ${
+            isStreaming ? 'btn-ghost border border-crit-fg/50 text-crit-fg hover:bg-crit-bg/20' : 'btn-primary'
+          }`}
+          data-testid="toggle-simulated-stream"
+        >
+          {isStreaming ? (
+            <span className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ok-fg opacity-75"></span>
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-ok-fg"></span>
+              </span>
+              Streaming live (Stop)
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+              Start live stream
+            </span>
+          )}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-12">
+        {/* Device preview & selection */}
+        <div className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4 lg:col-span-5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-ink-3">Select wearable model</span>
+            <span className="rounded bg-surface-2 px-2 py-0.5 text-xs font-medium text-ink-2">Battery: 94% · 0.4 Hz</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {DEMO_DEVICES.map((d) => (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => setSelectedDeviceId(d.id)}
+                className={`flex flex-col items-center rounded-tile border p-2 text-center transition-all ${
+                  selectedDeviceId === d.id ? 'border-accent bg-accent/10 shadow-sm' : 'border-line hover:bg-surface-2'
+                }`}
+                data-testid={`select-device-${d.id}`}
+              >
+                <img src={d.image} alt={d.name} className="h-16 w-auto object-contain py-1" />
+                <span className="mt-1 text-xs font-bold text-ink">{d.name}</span>
+                <span className="text-[10px] text-ink-3">{d.type}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-1 rounded-tile border border-line/60 bg-surface-2 p-2.5 text-xs">
+            <p className="font-semibold text-ink">{activeDevice.model}</p>
+            <p className="mt-0.5 text-ink-3">{activeDevice.description}</p>
+            <p className="mt-1 text-[11px] font-mono text-ink-2">Channels: {activeDevice.channels}</p>
+          </div>
+        </div>
+
+        {/* Physiological scenario profile */}
+        <div className="flex flex-col justify-between gap-3 rounded-card border border-line bg-surface p-4 lg:col-span-7">
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-ink-3">Physiological Scenario</span>
+              <span className={`rounded px-2 py-0.5 text-xs font-bold ${activeProfile.badgeClass}`}>
+                {activeProfile.tag}
+              </span>
+            </div>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {PROFILES.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setProfileId(p.id)}
+                  className={`flex flex-col rounded-tile border p-2.5 text-left transition-all ${
+                    profileId === p.id ? 'border-accent bg-accent/10 shadow-sm' : 'border-line hover:bg-surface-2'
+                  }`}
+                  data-testid={`select-profile-${p.id}`}
+                >
+                  <span className="text-xs font-bold text-ink">{p.label}</span>
+                  <span className="mt-1 font-mono text-[11px] text-ink-2">
+                    HR {p.hr} · SpO₂ {p.spo2}%
+                  </span>
+                  <span className="mt-0.5 font-mono text-[10px] text-ink-3">
+                    {p.temp}°C · {p.sys}/{p.dia}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <p className="mt-3 text-xs text-ink-3">{activeProfile.desc}</p>
+          </div>
+
+          <div className="rounded-tile border border-line/70 bg-surface-2/60 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="text-ink-2">
+                Status: <strong className={isStreaming ? 'text-ok-fg' : 'text-ink-3'}>{isStreaming ? 'Active broadcast' : 'Standby'}</strong>
+              </span>
+              <span className="text-ink-3">Target: {activeDevice.name} ({activeProfile.label})</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function BluetoothPanel() {
   const crewId = useHealthStore((s) => s.crewId);
   const telemetryKey = useHealthStore((s) => s.telemetryKey);
@@ -100,6 +377,9 @@ function BluetoothPanel() {
       <h2 id="ble-h" className="text-lg font-bold">Connect a wearable (Bluetooth)</h2>
       <p className="mt-1 text-sm text-ink-3">
         Pairs directly with devices that use the standard Bluetooth health profiles: heart-rate straps and watches in heart-rate broadcast mode, clinical thermometers and blood-pressure cuffs.
+      </p>
+      <p className="mt-2 rounded-tile border border-line bg-surface-2 px-3 py-2 text-xs text-ink-3" role="note">
+        Physical Web Bluetooth requires real hardware (e.g. Polar H10 or Omron cuff) broadcasting standard GATT profiles nearby. If no physical hardware is present, Chrome will report &quot;No compatible devices found&quot;. Use the <strong>Simulated Wearable</strong> above to test live data and sync.
       </p>
       {!support.supported && (
         <p className="mt-2 rounded border border-warn-dot p-2 text-sm text-warn-fg" role="note" data-testid="ble-unsupported">
@@ -258,6 +538,7 @@ export default function Telemetry() {
         ))}
       </div>
       <SyncPanel now={now} />
+      <DemoWearablePanel />
       <div className="grid gap-4 xl:grid-cols-2">
         <BluetoothPanel />
         <GatewayPanel devices={devices} now={now} />

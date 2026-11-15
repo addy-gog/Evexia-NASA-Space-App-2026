@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" fill="none">
+  <!-- Gradient definitions -->
+  <defs>
+    <linearGradient id="strapGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#11151c" />
+      <stop offset="50%" stop-color="#1e2430" />
+      <stop offset="100%" stop-color="#11151c" />
+    </linearGradient>
+    <linearGradient id="puckGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a3242" />
+      <stop offset="100%" stop-color="#0f131a" />
+    </linearGradient>
+    <radialGradient id="ringGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="70%" stop-color="#ff4d55" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#ff4d55" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="metalBezel" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#64748b" />
+      <stop offset="50%" stop-color="#334155" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+    <linearGradient id="goldContact" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+  </defs>
+
+  <!-- Chest Harness Elastic Webbing / Strap -->
+  <path d="M 20 100 Q 200 120 380 100 L 380 140 Q 200 160 20 140 Z" fill="url(#strapGrad)" stroke="#334155" stroke-width="2" />
+  
+  <!-- Strap Ribbed Texture -->
+  <path d="M 40 102 L 40 138 M 60 104 L 60 140 M 80 106 L 80 142 M 100 108 L 100 144 M 300 108 L 300 144 M 320 106 L 320 142 M 340 104 L 340 140 M 360 102 L 360 138" stroke="#1e293b" stroke-width="3" stroke-linecap="round" />
+
+  <!-- Conductive ECG Sensor Pads (left and right on strap) -->
+  <rect x="70" y="112" width="40" height="20" rx="4" fill="url(#goldContact)" stroke="#b45309" stroke-width="1.5" />
+  <circle cx="90" cy="122" r="3" fill="#78350f" />
+  <text x="90" y="142" font-family="monospace" font-size="7" fill="#94a3b8" text-anchor="middle">ECG-L</text>
+
+  <rect x="290" y="112" width="40" height="20" rx="4" fill="url(#goldContact)" stroke="#b45309" stroke-width="1.5" />
+  <circle cx="310" cy="122" r="3" fill="#78350f" />
+  <text x="310" y="142" font-family="monospace" font-size="7" fill="#94a3b8" text-anchor="middle">ECG-R</text>
+
+  <!-- Central Sensor Pod / Transmitter Puck Mount -->
+  <ellipse cx="200" cy="125" rx="66" ry="66" fill="#0b0f17" stroke="#475569" stroke-width="3" />
+  
+  <!-- Outer Bezel Ring -->
+  <ellipse cx="200" cy="125" rx="58" ry="58" fill="url(#puckGrad)" stroke="url(#metalBezel)" stroke-width="3" />
+  
+  <!-- Red Accent Ring -->
+  <ellipse cx="200" cy="125" rx="50" ry="50" fill="none" stroke="#ff4d55" stroke-width="2" stroke-dasharray="4 2" />
+
+  <!-- Inner Display / Sensor Face -->
+  <circle cx="200" cy="125" r="42" fill="#090d14" />
+
+  <!-- Telemetry Active LED Indicator -->
+  <circle cx="200" cy="98" r="4" fill="#22c55e" />
+  <circle cx="200" cy="98" r="7" fill="#22c55e" opacity="0.3" />
+
+  <!-- Pulse Waveform / ECG Trace on screen -->
+  <path d="M 172 125 L 182 125 L 186 116 L 190 136 L 194 105 L 199 142 L 203 125 L 207 122 L 211 125 L 228 125" fill="none" stroke="#ff4d55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Device Nomenclature / Specs -->
+  <text x="200" y="150" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="8" fill="#e2e8f0" text-anchor="middle" letter-spacing="1">BIO-HARNESS MK-IV</text>
+  <text x="200" y="160" font-family="monospace" font-size="6.5" fill="#94a3b8" text-anchor="middle">NASA EVA/IVA TELEMETRY</text>
+
+  <!-- Bluetooth Icon Marker -->
+  <g transform="translate(196, 104) scale(0.35)">
+    <path d="M7 12l10 10-5 5V7l5 5-10 10" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>
