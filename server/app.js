@@ -12,7 +12,7 @@ import { evaluateCurrent } from '../client/src/lib/evaluate.js';
 import { validateEscalationPayload } from '../client/src/lib/escalation.js';
 import { validateTelemetryPayload } from '../client/src/lib/telemetry.js';
 import { ENVIRONMENTS, READING_FIELDS } from '../client/src/config/thresholds.js';
-import { answerQuestion, getAssistantConfig } from './lib/assistant.js';
+import { answerQuestion, getAssistantConfig, normaliseImage } from './lib/assistant.js';
 import { getSpaceWeather } from './lib/spaceWeather.js';
 import { ageOn } from './lib/people.js';
 import {
@@ -72,7 +72,10 @@ export function createApp({
   const origins = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
   // Credentials (the session cookie) are only allowed for explicitly listed origins.
   app.use(cors(origins.length ? { origin: origins, credentials: true } : {}));
-  app.use(express.json({ limit: '256kb' }));
+  // Photos for the assistant are the only large bodies; every other route keeps the small limit.
+  const smallJson = express.json({ limit: '256kb' });
+  const photoJson = express.json({ limit: '3mb' });
+  app.use((req, res, next) => (req.path === '/api/assistant' ? photoJson : smallJson)(req, res, next));
   app.use(sessionMiddleware(repo));
 
   const api = express.Router();
@@ -294,6 +297,54 @@ export function createApp({
     return res.json(updated);
   });
 
+  // ---------- Symptom notes (saved by the astronaut from an assistant proposal) ----------
+  api.post('/symptom-notes', requireAuth, (req, res) => {
+    const b = req.body ?? {};
+    const crewId = crewFor(req, res, b.crewId);
+    if (!crewId) return undefined;
+    const errors = {};
+    const ts = new Date(b.ts ?? Date.now());
+    if (Number.isNaN(ts.getTime()) || ts.getTime() > Date.now() + MAX_FUTURE_MS) errors.ts = 'ts must be an ISO date-time, not in the future.';
+    if (typeof b.summary !== 'string' || !b.summary.trim() || b.summary.length > 200) errors.summary = 'summary must be text up to 200 characters.';
+    if (b.details !== undefined && (typeof b.details !== 'string' || b.details.length > 2000)) errors.details = 'details must be text up to 2000 characters.';
+    const hours = b.recheckHours === undefined || b.recheckHours === null ? null : Number(b.recheckHours);
+    if (hours !== null && (!Number.isInteger(hours) || hours < 1 || hours > 48)) errors.recheckHours = 'recheckHours must be a whole number from 1 to 48.';
+    if (b.id !== undefined && (typeof b.id !== 'string' || b.id.length > 80)) errors.id = 'id must be a string up to 80 characters.';
+    if (Object.keys(errors).length) return badRequest(res, errors);
+    const existing = b.id ? repo.getSymptomNote(b.id) : null;
+    if (existing && existing.crewId !== crewId) return res.status(409).json({ error: 'id_conflict' });
+    const saved = repo.upsertSymptomNote({
+      id: b.id || randomUUID(),
+      crewId,
+      ts: ts.toISOString(),
+      summary: b.summary.trim(),
+      details: (b.details ?? '').trim(),
+      recheckAt: hours ? new Date(ts.getTime() + hours * 3_600_000).toISOString() : null,
+    });
+    return res.status(existing ? 200 : 201).json(saved);
+  });
+
+  api.get('/symptom-notes', requireAuth, (req, res) => {
+    const crewId = crewFor(req, res, req.query.crewId ? String(req.query.crewId) : '');
+    if (!crewId) return undefined;
+    return res.json({ crewId, notes: repo.listSymptomNotes(crewId) });
+  });
+
+  api.patch('/symptom-notes/:id', requireAuth, (req, res) => {
+    const note = repo.getSymptomNote(req.params.id);
+    if (!note) return res.status(404).json({ error: 'not_found' });
+    if (!canAccessCrew(req.user, note.crewId)) return forbidden(res);
+    const status = req.body?.status;
+    if (!['open', 'done'].includes(status)) return badRequest(res, { status: 'status must be "open" or "done".' });
+    return res.json(repo.setSymptomNoteStatus(note.id, note.crewId, status));
+  });
+
+  // ---------- Knowledge gaps (questions Evexia's NASA data does not cover yet) ----------
+  api.get('/knowledge-gaps', requireAuth, (req, res) => {
+    const crewId = req.user.role === 'surgeon' ? null : req.user.crewId;
+    res.json({ gaps: repo.listKnowledgeGaps(crewId) });
+  });
+
   // ---------- Wearable telemetry ----------
   // Accepted from a signed-in crew member (Bluetooth via this app) or a device gateway with the key.
   // With no TELEMETRY_KEY configured, gateways may post without one (development only).
@@ -381,13 +432,17 @@ export function createApp({
   });
 
   api.post('/assistant', requireAuth, assistantLimiter, async (req, res) => {
-    const { question, context } = req.body ?? {};
-    if (typeof question !== 'string' || !question.trim()) return badRequest(res, { question: 'question is required.' });
-    if (question.length > 1000) return badRequest(res, { question: 'question must be 1000 characters or fewer.' });
+    const { question, context, history } = req.body ?? {};
+    const { image, error: imageError } = normaliseImage(req.body?.image);
+    if (imageError) return badRequest(res, { image: imageError });
+    const asked = typeof question === 'string' ? question.trim() : '';
+    if (!asked && !image) return badRequest(res, { question: 'question is required.' });
+    if (asked.length > 1000) return badRequest(res, { question: 'question must be 1000 characters or fewer.' });
     try {
       // Only an astronaut's own record is offered to the readings tool; other roles get no personal data.
       const crewId = req.user?.role === 'astronaut' ? req.user.crewId : null;
-      return res.json(await answerQuestion({ question: question.trim(), context, crewId }, assistantConfig, { repo, ...assistantDeps }));
+      const q = asked || 'What can you see in this photo?';
+      return res.json(await answerQuestion({ question: q, context, crewId, image, history }, assistantConfig, { repo, ...assistantDeps }));
     } catch (err) {
       console.error('[assistant] unexpected error', err);
       return res.status(500).json({ error: 'assistant_failed' });

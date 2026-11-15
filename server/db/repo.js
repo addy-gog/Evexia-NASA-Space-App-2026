@@ -55,7 +55,21 @@ export function createRepo(db) {
        ON CONFLICT(crew_id, device_id) DO UPDATE SET device_name = excluded.device_name, kind = excluded.kind, last_seen = excluded.last_seen`,
     ),
     devices: db.prepare('SELECT * FROM devices WHERE crew_id = ? ORDER BY last_seen DESC'),
+    noteInsert: db.prepare(
+      `INSERT INTO symptom_notes (id, crew_id, ts, summary, details, recheck_at, status, source, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET summary = excluded.summary, details = excluded.details, recheck_at = excluded.recheck_at, status = excluded.status`,
+    ),
+    noteOne: db.prepare('SELECT * FROM symptom_notes WHERE id = ?'),
+    notesCrew: db.prepare('SELECT * FROM symptom_notes WHERE crew_id = ? ORDER BY ts DESC LIMIT ?'),
+    noteStatus: db.prepare('UPDATE symptom_notes SET status = ? WHERE id = ? AND crew_id = ?'),
+    gapInsert: db.prepare('INSERT INTO knowledge_gaps (crew_id, topic, question, created_at) VALUES (?, ?, ?, ?)'),
+    gapsAll: db.prepare('SELECT * FROM knowledge_gaps ORDER BY id DESC LIMIT ?'),
+    gapsCrew: db.prepare('SELECT * FROM knowledge_gaps WHERE crew_id = ? ORDER BY id DESC LIMIT ?'),
   };
+  const toNote = (r) =>
+    r && { id: r.id, crewId: r.crew_id, ts: r.ts, summary: r.summary, details: r.details, recheckAt: r.recheck_at, status: r.status, source: r.source };
+  const toGap = (r) => r && { id: r.id, crewId: r.crew_id, topic: r.topic, question: r.question, createdAt: r.created_at };
 
   const toReading = (r) =>
     r && {
@@ -141,6 +155,22 @@ export function createRepo(db) {
       (metric ? q.telSinceMetric.all(crewId, metric, since, limit) : q.telSince.all(crewId, since, limit)).map((r) => toSample(plain(r))),
     telemetryLatest: (crewId) => q.telLatest.all(crewId).map((r) => toSample(plain(r))),
     pruneTelemetry: (before) => q.telPrune.run(before).changes,
+    upsertSymptomNote(n) {
+      q.noteInsert.run(n.id, n.crewId, n.ts, n.summary, n.details ?? '', n.recheckAt ?? null, n.status ?? 'open', n.source ?? 'assistant', new Date().toISOString());
+      return toNote(plain(q.noteOne.get(n.id)));
+    },
+    getSymptomNote: (id) => toNote(plain(q.noteOne.get(id))),
+    listSymptomNotes: (crewId, limit = 200) => q.notesCrew.all(crewId, limit).map((r) => toNote(plain(r))),
+    setSymptomNoteStatus(id, crewId, status) {
+      if (!q.noteStatus.run(status, id, crewId).changes) return null;
+      return toNote(plain(q.noteOne.get(id)));
+    },
+    insertKnowledgeGap({ crewId, topic, question }) {
+      const info = q.gapInsert.run(crewId ?? null, topic, question, new Date().toISOString());
+      return Number(info.lastInsertRowid);
+    },
+    listKnowledgeGaps: (crewId, limit = 100) => (crewId ? q.gapsCrew.all(crewId, limit) : q.gapsAll.all(limit)).map((r) => toGap(plain(r))),
+
     listDevices: (crewId) => q.devices.all(crewId).map((r) => ({ deviceId: r.device_id, deviceName: r.device_name, kind: r.kind, lastSeen: r.last_seen })),
 
     transaction(fn) {

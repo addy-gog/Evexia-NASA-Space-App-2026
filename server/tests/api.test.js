@@ -324,7 +324,18 @@ describe('assistant', () => {
     expect(params.system[1].text).toMatch(/600 mSv/);
     expect(params.system[1].text).toMatch(/Glucose: lab normal 65–99/);
     expect(params.system[1].cache_control).toEqual({ type: 'ephemeral' });
-    expect(params.tools.map((t) => t.name)).toEqual(['get_radiation_reference', 'get_inspiration4_lab_data', 'get_my_recent_readings']);
+    expect(params.tools.map((t) => t.name)).toEqual([
+      'get_radiation_reference', 'get_inspiration4_lab_data', 'get_my_recent_readings',
+      'propose_readings', 'propose_symptom_note', 'propose_report', 'record_knowledge_gap',
+    ]);
+    expect(params.tools.every((t) => t.strict && t.input_schema.additionalProperties === false)).toBe(true);
+    // Safety ladder and Option B are in the rules.
+    expect(params.system[0].text).toMatch(/Danger signs first/);
+    expect(params.system[0].text).toMatch(/General advice, not from Evexia's NASA sources:/);
+    expect(params.system[0].text).toMatch(/Never name a medicine, a dose, or a condition/);
+    expect(params.system[0].text).toMatch(/Not a diagnosis\. Your crew medical officer decides\./);
+    expect(params.messages[0].content).toMatch(/Safety screen: no danger-sign keywords/);
+    expect(res.body).toMatchObject({ actions: [], emergency: [], gapRecorded: false });
     expect(params.messages[0].content).toMatch(/Fasting blood glucose: 130 mg\/dL, RED/);
     expect(params.messages[0].content).toMatch(/0.48 mGy\/day measured ≈ 1.824 mSv\/day estimated/);
     expect(params.messages[0].content).toMatch(/self-care first/);
@@ -370,13 +381,127 @@ describe('assistant', () => {
     await (await signIn(b, 'surgeon')).post('/api/assistant').send({ question: 'sleep?', context });
     expect(JSON.parse(surgeonCreate.mock.calls[1][0].messages[2].content[0].content).error).toMatch(/No crew member/);
   });
-  it('tool loop stops after 3 rounds and falls back instead of looping', async () => {
+  it('tool loop stops after 4 rounds and falls back instead of looping', async () => {
     const create = vi.fn().mockResolvedValue({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'x', name: 'get_radiation_reference', input: { environment: 'station' } }] });
     const a = createApp({ repo, assistantConfig: { ...offlineConfig, apiKey: 'k' }, assistantDeps: { client: { beta: { messages: { create } } } }, rateLimitMax: 1000 });
     const res = await (await signIn(a, 'okafor')).post('/api/assistant').send({ question: 'radiation?', context });
-    expect(create).toHaveBeenCalledTimes(4);
+    expect(create).toHaveBeenCalledTimes(5);
     expect(res.body).toMatchObject({ mode: 'offline', reason: 'too_many_tool_calls' });
   });
+
+  // ---------- Photos, safety ladder, proposals ----------
+  const PNG_1PX = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const twoStep = (calls, finalText = 'Done.') => {
+    const create = vi.fn();
+    create.mockResolvedValueOnce({ stop_reason: 'tool_use', content: calls.map((c, i) => ({ type: 'tool_use', id: `p${i}`, ...c })) });
+    create.mockResolvedValueOnce({ model: 'claude-sonnet-5-5', stop_reason: 'end_turn', content: [{ type: 'text', text: finalText }] });
+    return create;
+  };
+  const withClient = (create) => createApp({ repo, assistantConfig: { ...offlineConfig, apiKey: 'k' }, assistantDeps: { client: { beta: { messages: { create } } } }, rateLimitMax: 1000 });
+
+  it('a photo reaches Claude as an image block before the text; photo-only messages are allowed', async () => {
+    const create = vi.fn().mockResolvedValue({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'I see a screen.' }] });
+    const res = await (await signIn(withClient(create), 'okafor')).post('/api/assistant').send({ question: '', context, image: { mediaType: 'image/png', data: PNG_1PX } });
+    expect(res.status).toBe(200);
+    const content = create.mock.calls[0][0].messages[0].content;
+    expect(content[0]).toEqual({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: PNG_1PX } });
+    expect(content[1].text).toMatch(/The astronaut attached a photo/);
+    expect(content[1].text).toMatch(/What can you see in this photo\?/);
+  });
+  it('bad photos are rejected: wrong type, not base64, too large; a photo offline gets a plain explanation', async () => {
+    const agent = await signIn(app, 'okafor');
+    expect((await agent.post('/api/assistant').send({ question: 'x', image: { mediaType: 'application/pdf', data: PNG_1PX } })).status).toBe(400);
+    expect((await agent.post('/api/assistant').send({ question: 'x', image: { mediaType: 'image/png', data: 'not base64!' } })).status).toBe(400);
+    expect((await agent.post('/api/assistant').send({ question: 'x', image: { mediaType: 'image/png', data: 'A'.repeat(2_000_004) } })).status).toBe(400);
+    const off = await agent.post('/api/assistant').send({ question: 'read this', context, image: { mediaType: 'image/png', data: PNG_1PX } });
+    expect(off.body.mode).toBe('offline');
+    expect(off.body.answer).toMatch(/cannot look at photos/);
+  });
+  it('device photo: proposed readings come back as a card, converted and checked by the server, never saved', async () => {
+    const before = repo.readingsSince('c1', new Date(0).toISOString()).length;
+    const create = twoStep([{ name: 'propose_readings', input: { device: 'glucose_meter', hr: null, sys: 300, dia: null, glucose: 5.5, glucose_unit: 'mmol/L', temp: 100.4, temp_unit: 'F', unreadable: 'time' } }]);
+    const res = await (await signIn(withClient(create), 'okafor')).post('/api/assistant').send({ question: 'log this', context, image: { mediaType: 'image/png', data: PNG_1PX } });
+    expect(res.body.actions).toEqual([
+      { type: 'readings', device: 'glucose_meter', values: { glucose: 99, temp: 38 }, unreadable: 'time', rejected: ['sys'], converted: { glucose: true, temp: true } },
+    ]);
+    // Claude is told it is only a card.
+    expect(JSON.parse(create.mock.calls[1][0].messages[2].content[0].content).instruction).toMatch(/Nothing is saved/);
+    expect(repo.readingsSince('c1', new Date(0).toISOString()).length).toBe(before);
+  });
+  it('unreadable device photo: no card, and Claude is told to ask for typed numbers', async () => {
+    const create = twoStep([{ name: 'propose_readings', input: { device: 'other', hr: null, sys: null, dia: null, glucose: null, glucose_unit: 'none', temp: null, temp_unit: 'none', unreadable: 'all of it' } }]);
+    const res = await (await signIn(withClient(create), 'okafor')).post('/api/assistant').send({ question: 'log this', context, image: { mediaType: 'image/png', data: PNG_1PX } });
+    expect(res.body.actions).toEqual([]);
+    expect(JSON.parse(create.mock.calls[1][0].messages[2].content[0].content).error).toMatch(/could not read the screen/);
+  });
+  it('not covered by NASA data: gap recorded server-side, symptom note and report proposed, nothing sent', async () => {
+    const escBefore = repo.listEscalations().length;
+    const create = twoStep([
+      { name: 'record_knowledge_gap', input: { topic: 'skin rash', question: 'Red itchy patch on forearm' } },
+      { name: 'propose_symptom_note', input: { summary: 'Red itchy patch, left forearm', details: 'Since yesterday, coin-sized.', recheck_hours: 200 } },
+      { name: 'propose_report', input: { priority: 'urgent', note: 'Red patch, watching it.' } },
+    ]);
+    const res = await (await signIn(withClient(create), 'okafor')).post('/api/assistant').send({ question: 'I have a red itchy patch on my arm', context });
+    expect(res.body.gapRecorded).toBe(true);
+    expect(res.body.actions).toEqual([
+      { type: 'symptom_note', summary: 'Red itchy patch, left forearm', details: 'Since yesterday, coin-sized.', recheckHours: 48 },
+      { type: 'report', priority: 'routine', note: 'Red patch, watching it.' },
+    ]);
+    expect(repo.listEscalations().length).toBe(escBefore);
+    const gaps = (await (await signIn(app, 'okafor')).get('/api/knowledge-gaps')).body.gaps;
+    expect(gaps[0]).toMatchObject({ crewId: 'c1', topic: 'skin rash', question: 'Red itchy patch on forearm' });
+    expect((await sx.get('/api/knowledge-gaps')).body.gaps.some((g) => g.topic === 'skin rash')).toBe(true);
+    expect((await (await signIn(app, 'marchetti')).get('/api/knowledge-gaps')).body.gaps.some((g) => g.topic === 'skin rash')).toBe(false);
+  });
+  it('safety screen: danger signs are flagged before Claude, online and offline; negations are not', async () => {
+    const off = await (await signIn(app, 'okafor')).post('/api/assistant').send({ question: 'I have chest pain and feel faint', context });
+    expect(off.body.emergency.map((e) => e.id)).toEqual(['chest_pain']);
+    expect(off.body.answer).toMatch(/^Possible danger sign: chest pain or pressure\. Open emergency mode/);
+    const create = vi.fn().mockResolvedValue({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'Open emergency mode now.' }] });
+    const on = await (await signIn(withClient(create), 'okafor')).post('/api/assistant').send({ question: "I can't breathe properly", context });
+    expect(on.body.emergency.map((e) => e.id)).toEqual(['breathing']);
+    expect(create.mock.calls[0][0].messages[0].content).toMatch(/Safety screen: possible danger signs in the message \(trouble breathing\)/);
+    const calm = await (await signIn(app, 'okafor')).post('/api/assistant').send({ question: 'No chest pain, just tired', context });
+    expect(calm.body.emergency).toEqual([]);
+  });
+  it('conversation history: earlier turns go first so Claude can follow up; leading assistant turns are dropped', async () => {
+    const create = vi.fn().mockResolvedValue({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'Thanks.' }] });
+    const history = [
+      { role: 'assistant', text: 'Welcome summary' },
+      { role: 'user', text: 'Red patch on my arm' },
+      { role: 'assistant', text: 'When did it start?' },
+      { role: 'bogus', text: 'ignored' },
+    ];
+    await (await signIn(withClient(create), 'okafor')).post('/api/assistant').send({ question: 'Yesterday, it itches', context, history });
+    const msgs = create.mock.calls[0][0].messages;
+    expect(msgs.map((m) => m.role)).toEqual(['user', 'assistant', 'user']);
+    expect(msgs[0].content).toBe('Red patch on my arm');
+    expect(msgs[2].content).toMatch(/Astronaut message: Yesterday, it itches/);
+  });
+
+describe('symptom notes', () => {
+  it('astronaut saves a note with a recheck time, lists it, marks it done; others cannot touch it', async () => {
+    const me = await signIn(app, 'okafor');
+    const ts = new Date(Date.now() - 60_000).toISOString();
+    const saved = await me.post('/api/symptom-notes').send({ ts, summary: 'Red patch, left forearm', details: 'Itchy.', recheckHours: 4 });
+    expect(saved.status).toBe(201);
+    expect(saved.body).toMatchObject({ crewId: 'c1', summary: 'Red patch, left forearm', status: 'open', recheckAt: new Date(new Date(ts).getTime() + 4 * 3_600_000).toISOString() });
+    expect((await me.get('/api/symptom-notes')).body.notes[0].id).toBe(saved.body.id);
+    expect((await sx.get('/api/symptom-notes?crewId=c1')).body.notes.some((n) => n.id === saved.body.id)).toBe(true);
+    const other = await signIn(app, 'marchetti');
+    expect((await other.patch(`/api/symptom-notes/${saved.body.id}`).send({ status: 'done' })).status).toBe(403);
+    expect((await other.get('/api/symptom-notes?crewId=c1')).status).toBe(403);
+    const done = await me.patch(`/api/symptom-notes/${saved.body.id}`).send({ status: 'done' });
+    expect(done.body.status).toBe('done');
+  });
+  it('rejects empty summaries and recheck times outside 1–48 hours', async () => {
+    const me = await signIn(app, 'okafor');
+    expect((await me.post('/api/symptom-notes').send({ summary: ' ' })).status).toBe(400);
+    expect((await me.post('/api/symptom-notes').send({ summary: 'x', recheckHours: 0 })).status).toBe(400);
+    expect((await me.post('/api/symptom-notes').send({ summary: 'x', recheckHours: 49 })).status).toBe(400);
+    expect((await me.patch('/api/symptom-notes/nope').send({ status: 'done' })).status).toBe(404);
+  });
+});
   it('refusal → offline fallback; rate limit → 429', async () => {
     const client = { beta: { messages: { create: vi.fn().mockResolvedValue({ stop_reason: 'refusal', content: [] }) } } };
     const a = createApp({ repo, assistantConfig: { ...offlineConfig, apiKey: 'k' }, assistantDeps: { client }, rateLimitMax: 1000 });

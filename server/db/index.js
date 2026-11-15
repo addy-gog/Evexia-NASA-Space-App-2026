@@ -95,6 +95,27 @@ CREATE TABLE IF NOT EXISTS devices (
   last_seen TEXT NOT NULL,
   PRIMARY KEY (crew_id, device_id)
 );
+-- Symptoms the astronaut chose to save from the assistant, with a time to check again.
+CREATE TABLE IF NOT EXISTS symptom_notes (
+  id TEXT PRIMARY KEY,
+  crew_id TEXT NOT NULL REFERENCES crew(id),
+  ts TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  details TEXT NOT NULL DEFAULT '',
+  recheck_at TEXT,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'done')),
+  source TEXT NOT NULL DEFAULT 'assistant',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_symptom_notes_crew_ts ON symptom_notes(crew_id, ts);
+-- Questions the assistant found were not covered by Evexia's NASA data.
+CREATE TABLE IF NOT EXISTS knowledge_gaps (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  crew_id TEXT,
+  topic TEXT NOT NULL,
+  question TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
 `;
 
 export function openDb(file = DEFAULT_DB_PATH) {
