@@ -65,6 +65,22 @@ test.describe('Accessibility (axe): zero serious or critical violations', () => 
     expect(await seriousViolations(page)).toEqual([]);
   });
 
+  test('Dark theme is the default; light theme from Settings persists and passes axe', async ({ page }) => {
+    await signIn(page, 'okafor');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.goto('/settings');
+    await page.getByTestId('theme-light').click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect(page.getByTestId('theme-light')).toHaveAttribute('aria-pressed', 'true');
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light'); // saved across reloads
+    await expect(page.locator('main h1').first()).toBeVisible();
+    expect(await seriousViolations(page)).toEqual([]);
+    await page.goto('/settings');
+    await page.getByTestId('theme-dark').click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  });
+
   test('AI assistant panel open', async ({ page }) => {
     await signIn(page, 'okafor');
     await page.getByTestId('assistant-open').click();
@@ -155,6 +171,6 @@ test.describe('Performance sanity', () => {
       await expect(page.getByTestId('body-3d').locator('canvas')).toBeVisible({ timeout: 20_000 });
     }
     // One body canvas plus the AI companion canvas.
-    expect(await page.locator('canvas').count()).toBeLessThanOrEqual(2);
+    expect(await page.locator('canvas:not([data-space-bg])').count()).toBeLessThanOrEqual(2); // the 2D starfield canvas is not WebGL
   });
 });

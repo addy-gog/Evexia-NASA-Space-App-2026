@@ -12,9 +12,9 @@ import * as THREE from 'three';
 import { SEVERITY_META, GRADE_OF } from './Status.jsx';
 import { HOTSPOTS } from '../config/fields.js';
 
-const BODY = '#E6EBF3';
-const SEAM = '#A9B5C6';
-const NONE = '#9AA6B8';
+const BODY = '#1C2B4F';
+const SEAM = '#6D86C0';
+const NONE = '#6B7894';
 const YAW_LIMIT = (40 * Math.PI) / 180;
 
 const SILHOUETTE = [
@@ -141,7 +141,7 @@ function Hotspot({ id, r, selected, onSelect }) {
           data-testid={`hotspot-${id}`}
           style={{ position: 'absolute', left: -22, top: -22, width: 44, height: 44, borderRadius: '50%', background: 'transparent', border: 0, padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto' }}
         >
-          <span style={{ width: selected ? 22 : 18, height: selected ? 22 : 18, borderRadius: '50%', background: m ? m.color : NONE, border: '3px solid #FFFFFF', boxShadow: selected ? '0 0 0 3px rgba(31,79,216,.35), 0 2px 6px rgba(14,23,38,.3)' : '0 2px 6px rgba(14,23,38,.3)', display: 'block' }} />
+          <span style={{ width: selected ? 22 : 18, height: selected ? 22 : 18, borderRadius: '50%', background: m ? m.color : NONE, border: '3px solid #FFFFFF', boxShadow: selected ? '0 0 0 3px rgba(255,77,85,.45), 0 2px 8px rgba(0,0,0,.5)' : '0 2px 6px rgba(0,0,0,.3)', display: 'block' }} />
         </button>
         <span
           className="font-mono"
@@ -155,17 +155,17 @@ function Hotspot({ id, r, selected, onSelect }) {
             gap: 6,
             padding: '5px 10px',
             borderRadius: 999,
-            background: '#FFFFFF',
-            border: `1px solid ${selected ? '#1F4FD8' : m ? m.line : '#DDE2E9'}`,
-            boxShadow: '0 4px 12px rgba(14,23,38,.10)',
+            background: 'rgb(var(--c-surface) / 0.88)',
+            border: `1px solid ${selected ? '#FF4D55' : m ? m.line : 'rgb(var(--c-line))'}`,
+            boxShadow: '0 4px 14px rgba(0,0,0,.3)',
             fontSize: 12,
             fontWeight: 600,
-            color: '#0E1726',
+            color: 'rgb(var(--c-ink))',
           }}
           aria-hidden="true"
         >
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: m ? m.color : NONE, display: 'block' }} />
-          <span style={{ fontFamily: 'Inter, sans-serif', color: '#4A5568' }}>{h.short}</span>
+          <span style={{ fontFamily: 'Inter, sans-serif', color: '#96A3BD' }}>{h.short}</span>
           {r ? r.shortValue : '—'}
         </span>
       </div>

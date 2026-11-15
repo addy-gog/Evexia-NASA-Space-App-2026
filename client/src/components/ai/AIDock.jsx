@@ -234,7 +234,7 @@ export default function AIDock() {
           <header className="flex items-center gap-1.5 border-b border-line px-4 py-3">
             <div className="min-w-0 flex-1">
               <h2 className="whitespace-nowrap font-display text-lg font-bold">Evexia AI</h2>
-              <p className={`truncate text-xs font-semibold ${busy ? 'text-accent' : 'text-ink-3'}`}>{busy ? (photo || shown.at(-1)?.photo ? 'Looking at the photo…' : 'Thinking…') : modeText}</p>
+              <p className={`truncate text-xs font-semibold ${busy ? 'text-accent-text' : 'text-ink-3'}`}>{busy ? (photo || shown.at(-1)?.photo ? 'Looking at the photo…' : 'Thinking…') : modeText}</p>
             </div>
             <button type="button" className="btn-ghost min-h-touch px-3 text-xs" aria-pressed={offline} onClick={() => setOffline(!offline)} data-testid="online-toggle">
               {offline ? 'Go online' : 'Use offline'}
@@ -251,7 +251,7 @@ export default function AIDock() {
               {offline || fallback ? (
                 <span className="rounded-full bg-warn-bg px-2.5 py-1 text-[11px] font-bold text-warn-fg" data-testid="offline-badge">Offline guidance mode</span>
               ) : (
-                <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent-strong" data-testid="ai-badge">Claude</span>
+                <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent-text" data-testid="ai-badge">Claude</span>
               )}
               <span className="text-[11px] text-ink-3">{offline ? 'Rule-based answers, works without a link.' : fallback ? 'Set ANTHROPIC_API_KEY on the server for Claude.' : 'Answers from Claude via the ground server.'}</span>
             </div>
@@ -278,7 +278,7 @@ export default function AIDock() {
                       <Link to="/emergency" className="btn-danger mt-2 min-h-touch px-3.5 text-sm" onClick={() => setOpen(false)}>Open emergency mode</Link>
                     </div>
                   )}
-                  <div className="whitespace-pre-wrap rounded-[16px_16px_16px_4px] border border-[#E6EAF0] bg-surface px-3.5 py-2.5 text-sm">{m.text}</div>
+                  <div className="whitespace-pre-wrap rounded-[16px_16px_16px_4px] border border-line bg-surface px-3.5 py-2.5 text-sm">{m.text}</div>
                   {m.actions?.map((a) => <ActionCard key={a.type} action={a} onOpenReport={setReport} />)}
                   {m.gap && <p className="mt-1.5 text-xs text-ink-3" data-testid="gap-recorded">Added to the list of questions Evexia&apos;s NASA data does not cover yet.</p>}
                   {speaker.supported && (
@@ -296,7 +296,7 @@ export default function AIDock() {
               ),
             )}
             {busy && (
-              <div className="flex gap-1.5 self-start rounded-[16px_16px_16px_4px] border border-[#E6EAF0] bg-surface px-4 py-3.5" aria-label="Evexia AI is typing">
+              <div className="flex gap-1.5 self-start rounded-[16px_16px_16px_4px] border border-line bg-surface px-4 py-3.5" aria-label="Evexia AI is typing">
                 <span className="dot1 block h-[7px] w-[7px] rounded-full bg-accent" />
                 <span className="dot2 block h-[7px] w-[7px] rounded-full bg-accent" />
                 <span className="dot3 block h-[7px] w-[7px] rounded-full bg-accent" />
@@ -305,11 +305,11 @@ export default function AIDock() {
           </div>
           <div className="flex gap-1.5 overflow-x-auto px-4 pb-2 pt-1" role="group" aria-label="Suggested questions">
             {CHIPS.map((q) => (
-              <button key={q} type="button" disabled={busy} onClick={() => ask(q)} className="min-h-touch flex-none rounded-full border border-[#C9D1DC] bg-surface px-3.5 text-[13px] font-semibold text-accent hover:bg-accent-soft">
+              <button key={q} type="button" disabled={busy} onClick={() => ask(q)} className="min-h-touch flex-none rounded-full border border-ink/25 bg-surface px-3.5 text-[13px] font-semibold text-accent-text hover:bg-accent-soft">
                 {q}
               </button>
             ))}
-            <button type="button" disabled={busy} onClick={() => setMenuOpen(true)} className="min-h-touch flex-none rounded-full border border-[#C9D1DC] bg-surface px-3.5 text-[13px] font-semibold text-accent hover:bg-accent-soft">
+            <button type="button" disabled={busy} onClick={() => setMenuOpen(true)} className="min-h-touch flex-none rounded-full border border-ink/25 bg-surface px-3.5 text-[13px] font-semibold text-accent-text hover:bg-accent-soft">
               Read a device screen
             </button>
           </div>
@@ -326,7 +326,7 @@ export default function AIDock() {
           >
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} data-testid="photo-input" tabIndex={-1} aria-hidden="true" />
             <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFile} tabIndex={-1} aria-hidden="true" />
-            <div className="composer relative rounded-[24px] border border-[#C9D1DC] bg-surface p-1.5" data-testid="composer">
+            <div className="composer relative rounded-[24px] border border-ink/25 bg-surface p-1.5" data-testid="composer">
               {photo && (
                 <div className="flex items-center gap-3 px-1.5 pb-1.5 pt-0.5" data-testid="photo-preview">
                   <img src={photo.previewUrl} alt="Photo ready to send" className="h-14 w-14 flex-none rounded-tile border border-line object-cover" />
@@ -439,7 +439,7 @@ export default function AIDock() {
       >
         <span className="relative block h-[60px] w-[60px] flex-none lg:h-[76px] lg:w-[76px]" aria-hidden="true">
           <span className="absolute inset-0 block rounded-full bg-accent-soft" />
-          <span className="orbit absolute inset-[5px] block rounded-full border-[1.5px] border-dashed border-[#9DB3F0]">
+          <span className="orbit absolute inset-[5px] block rounded-full border-[1.5px] border-dashed border-accent-text/70">
             <span className="absolute -top-1 left-1/2 block h-2 w-2 rounded-full bg-accent" />
           </span>
           <span className="absolute -top-3 left-1/2 block -translate-x-1/2">

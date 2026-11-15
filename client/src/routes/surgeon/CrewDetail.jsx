@@ -48,9 +48,9 @@ function HeartDotMatrix({ logs, now }) {
             return (
               <g key={d.k} transform={`translate(${i * 36 + 18} 0)`}>
                 {Array.from({ length: rows }, (_, r) => (
-                  <circle key={r} cx="0" cy={rows * 10 - r * 10} r="3.4" fill={r < n ? SEVERITY_META[sev].color : '#EEF1F5'} />
+                  <circle key={r} cx="0" cy={rows * 10 - r * 10} r="3.4" fill={r < n ? SEVERITY_META[sev].color : 'rgb(var(--c-line))'} />
                 ))}
-                {i % 2 === 0 && <text x="0" y={rows * 10 + 14} textAnchor="middle" fontSize="8" fill="#4A5568">{new Date(d.t).getDate()}</text>}
+                {i % 2 === 0 && <text x="0" y={rows * 10 + 14} textAnchor="middle" fontSize="8" fill="rgb(var(--c-ink-3))">{new Date(d.t).getDate()}</text>}
               </g>
             );
           })}
@@ -94,7 +94,7 @@ export default function CrewDetail() {
   }, [load]);
 
   const asc = useMemo(() => (data ? sortLogs(data.readings) : []), [data]);
-  if (error) return <p className="hud-panel mx-auto max-w-xl text-warn-fg" role="status">{error} <Link to="/surgeon" className="text-accent underline">Back to crew</Link></p>;
+  if (error) return <p className="hud-panel mx-auto max-w-xl text-warn-fg" role="status">{error} <Link to="/surgeon" className="text-accent-text underline">Back to crew</Link></p>;
   if (!data) return <p className="text-ink-3" role="status">Loading health record…</p>;
 
   const { profile: p, status: s, escalations, devices } = data;
@@ -122,7 +122,7 @@ export default function CrewDetail() {
 
   return (
     <div className="mx-auto flex max-w-page flex-col gap-6" data-testid="crew-detail" data-crew={p.id}>
-      <Link to="/surgeon" className="inline-flex min-h-touch w-fit items-center gap-1 text-sm font-semibold text-accent">
+      <Link to="/surgeon" className="inline-flex min-h-touch w-fit items-center gap-1 text-sm font-semibold text-accent-text">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
         All crew
       </Link>
@@ -240,7 +240,7 @@ export default function CrewDetail() {
               <ul className="divide-y divide-line">
                 {devices.map((d) => (
                   <li key={d.deviceId} className="flex flex-wrap items-center gap-3 py-3">
-                    <span className={`block h-2.5 w-2.5 rounded-full ${Date.now() - new Date(d.lastSeen).getTime() < 120_000 ? 'bg-ok-dot' : 'bg-[#9AA6B8]'}`} aria-hidden="true" />
+                    <span className={`block h-2.5 w-2.5 rounded-full ${Date.now() - new Date(d.lastSeen).getTime() < 120_000 ? 'bg-ok-dot' : 'bg-ink-3/60'}`} aria-hidden="true" />
                     <span className="font-semibold">{d.deviceName}</span>
                     <span className="text-sm text-ink-3">{d.kind} · last seen {relativeTime(d.lastSeen)}</span>
                   </li>

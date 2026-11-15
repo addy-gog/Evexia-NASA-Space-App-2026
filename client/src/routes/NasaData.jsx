@@ -51,7 +51,7 @@ function SpaceWeather() {
                 <ul className="mt-1 space-y-1 text-sm">
                   {data.sep.slice(0, 6).map((e) => (
                     <li key={e.id}>
-                      <a href={e.link} target="_blank" rel="noreferrer noopener" className="text-accent underline">{formatDateTime(e.time)}</a> · {e.instruments.join(', ')}
+                      <a href={e.link} target="_blank" rel="noreferrer noopener" className="text-accent-text underline">{formatDateTime(e.time)}</a> · {e.instruments.join(', ')}
                     </li>
                   ))}
                 </ul>
@@ -62,7 +62,7 @@ function SpaceWeather() {
               <ul className="mt-1 space-y-1 text-sm" data-testid="flare-list">
                 {data.flares.slice(0, 6).map((f) => (
                   <li key={f.id}>
-                    <a href={f.link} target="_blank" rel="noreferrer noopener" className="text-accent underline">{f.classType}</a> · peak {formatDateTime(f.peak)} · {f.sourceLocation}
+                    <a href={f.link} target="_blank" rel="noreferrer noopener" className="text-accent-text underline">{f.classType}</a> · peak {formatDateTime(f.peak)} · {f.sourceLocation}
                   </li>
                 ))}
               </ul>
@@ -103,14 +103,14 @@ function RadLab() {
               <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} ticks={dayTicks} interval="preserveStartEnd" tickFormatter={(t) => new Date(t).toLocaleDateString('en-GB', { day: '2-digit', timeZone: 'UTC' })} label={{ value: 'May 2024 (UTC)', position: 'insideBottomRight', offset: -2, fill: '#94a3b8', fontSize: 11 }} />
               <YAxis width={52} label={{ value: 'µGy/h', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 11 }} />
               <ReferenceLine y={s.baselineUGyPerHour} stroke="#22c55e" strokeDasharray="4 4" label={{ value: 'quiet-day mean', position: 'insideTopRight', fill: '#22c55e', fontSize: 11 }} />
-              <Tooltip contentStyle={{ background: 'rgb(12 22 44)', border: '1px solid rgb(40 64 110)', color: '#e8eef8' }} labelFormatter={(t) => `${new Date(t).toISOString().slice(0, 16).replace('T', ' ')} UTC`} formatter={(v) => [`${v} µGy/h`, 'Absorbed dose rate']} />
+              <Tooltip contentStyle={{ background: 'rgb(var(--c-surface))', border: '1px solid rgb(var(--c-line))', color: 'rgb(var(--c-ink))' }} labelFormatter={(t) => `${new Date(t).toISOString().slice(0, 16).replace('T', ' ')} UTC`} formatter={(v) => [`${v} µGy/h`, 'Absorbed dose rate']} />
               <Line type="monotone" dataKey="v" stroke="#ef4444" strokeWidth={2} dot={false} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
         <p className="mt-1 text-xs text-ink-3">
           Hourly means of {storm.instrument} data from NASA OSDR RadLab, retrieved {formatDateTime(storm.retrieved)}.{' '}
-          <a className="text-accent underline" href={storm.sourceUrl} target="_blank" rel="noreferrer noopener">Data query</a>
+          <a className="text-accent-text underline" href={storm.sourceUrl} target="_blank" rel="noreferrer noopener">Data query</a>
         </p>
         <SourceTags ids={['RADLAB']} className="mt-1" />
       </section>

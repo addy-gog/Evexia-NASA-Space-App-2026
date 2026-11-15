@@ -13,7 +13,7 @@ export default function Credits() {
         <ul className="list-disc space-y-1 pl-5" data-testid="model-credits">
           {MODEL_CREDITS.map((c) => (
             <li key={c.title}>
-              <strong>{c.what}:</strong> &ldquo;{c.title}&rdquo; by {c.author}, {c.licence}. <a href={c.url} className="text-accent underline" target="_blank" rel="noreferrer">Source</a>.{c.note ? ` ${c.note}` : ''}
+              <strong>{c.what}:</strong> &ldquo;{c.title}&rdquo; by {c.author}, {c.licence}. <a href={c.url} className="text-accent-text underline" target="_blank" rel="noreferrer">Source</a>.{c.note ? ` ${c.note}` : ''}
             </li>
           ))}
         </ul>
@@ -38,7 +38,7 @@ export default function Credits() {
               {s.url && (
                 <>
                   {' '}
-                  <a className="text-accent underline" href={s.url} target="_blank" rel="noreferrer noopener">{s.url}</a>
+                  <a className="text-accent-text underline" href={s.url} target="_blank" rel="noreferrer noopener">{s.url}</a>
                 </>
               )}
               {!s.verified && <span className="text-warn-fg"> (to be verified)</span>}

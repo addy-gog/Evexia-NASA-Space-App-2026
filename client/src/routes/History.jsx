@@ -100,12 +100,12 @@ export default function History() {
   const sl = THRESHOLDS.sleep;
 
   const charts = [
-    { id: 'hr', title: 'Resting heart rate', unit: 'bpm', sevKey: 'hr', lines: [{ key: 'hr', name: 'Heart rate', color: '#e8eef8' }], domain: [30, 130], bands: twoSided(THRESHOLDS.hr, 30, 130) },
-    { id: 'bp', title: 'Blood pressure', unit: 'mmHg', sevKey: 'bp', domain: [40, 180], lines: [{ key: 'sys', name: 'Systolic', color: '#e8eef8' }, { key: 'dia', name: 'Diastolic', color: '#7dd3fc' }], bands: twoSided(THRESHOLDS.sys, 40, 180), refLines: [{ y: 85, label: 'dia amber 85' }, { y: 90, label: 'dia red 90' }] },
-    { id: 'glucose', title: 'Fasting blood glucose', unit: 'mg/dL', sevKey: 'glucose', lines: [{ key: 'glucose', name: 'Glucose', color: '#e8eef8' }], domain: [40, 160], bands: twoSided(THRESHOLDS.glucose, 40, 160) },
-    { id: 'temp', title: 'Body temperature', unit: '°C', sevKey: 'temp', lines: [{ key: 'temp', name: 'Temperature', color: '#e8eef8' }], domain: [34, 39.5], bands: twoSided(THRESHOLDS.temp, 34, 39.5) },
-    { id: 'sleep', title: 'Sleep', unit: 'h', sevKey: 'sleep', lines: [{ key: 'sleep', name: 'Sleep', color: '#e8eef8' }], domain: [3, 10], bands: [{ from: 3, to: sl.redSingleNight, severity: 'red' }, { from: sl.redSingleNight, to: sl.greenMin, severity: 'amber' }, { from: sl.greenMin, to: 10, severity: 'green' }], refLines: [{ y: sl.redConsecutiveBelow, label: '<6 h two nights = red' }] },
-    { id: 'radiation', title: 'Dosimeter (absorbed dose)', unit: 'mGy/day', sevKey: 'radiation', lines: [{ key: 'radiation', name: 'Absorbed dose', color: '#e8eef8' }], domain: [0, 'auto'], bands: [], note: `Limits are effective dose (mSv). In this environment green is below ${radGreenMsv} mSv/day; each point is coloured by its estimated mSv.` },
+    { id: 'hr', title: 'Resting heart rate', unit: 'bpm', sevKey: 'hr', lines: [{ key: 'hr', name: 'Heart rate', color: 'rgb(var(--c-ink))' }], domain: [30, 130], bands: twoSided(THRESHOLDS.hr, 30, 130) },
+    { id: 'bp', title: 'Blood pressure', unit: 'mmHg', sevKey: 'bp', domain: [40, 180], lines: [{ key: 'sys', name: 'Systolic', color: 'rgb(var(--c-ink))' }, { key: 'dia', name: 'Diastolic', color: '#7dd3fc' }], bands: twoSided(THRESHOLDS.sys, 40, 180), refLines: [{ y: 85, label: 'dia amber 85' }, { y: 90, label: 'dia red 90' }] },
+    { id: 'glucose', title: 'Fasting blood glucose', unit: 'mg/dL', sevKey: 'glucose', lines: [{ key: 'glucose', name: 'Glucose', color: 'rgb(var(--c-ink))' }], domain: [40, 160], bands: twoSided(THRESHOLDS.glucose, 40, 160) },
+    { id: 'temp', title: 'Body temperature', unit: '°C', sevKey: 'temp', lines: [{ key: 'temp', name: 'Temperature', color: 'rgb(var(--c-ink))' }], domain: [34, 39.5], bands: twoSided(THRESHOLDS.temp, 34, 39.5) },
+    { id: 'sleep', title: 'Sleep', unit: 'h', sevKey: 'sleep', lines: [{ key: 'sleep', name: 'Sleep', color: 'rgb(var(--c-ink))' }], domain: [3, 10], bands: [{ from: 3, to: sl.redSingleNight, severity: 'red' }, { from: sl.redSingleNight, to: sl.greenMin, severity: 'amber' }, { from: sl.greenMin, to: 10, severity: 'green' }], refLines: [{ y: sl.redConsecutiveBelow, label: '<6 h two nights = red' }] },
+    { id: 'radiation', title: 'Dosimeter (absorbed dose)', unit: 'mGy/day', sevKey: 'radiation', lines: [{ key: 'radiation', name: 'Absorbed dose', color: 'rgb(var(--c-ink))' }], domain: [0, 'auto'], bands: [], note: `Limits are effective dose (mSv). In this environment green is below ${radGreenMsv} mSv/day; each point is coloured by its estimated mSv.` },
   ];
 
   const exportCsv = () => {
@@ -123,7 +123,7 @@ export default function History() {
         <h1 className="text-2xl font-bold">History</h1>
         <div role="group" aria-label="Time range" className="ml-auto flex overflow-hidden rounded-md border border-line">
           {RANGES.map((x) => (
-            <button key={x.id} type="button" aria-pressed={range === x.id} onClick={() => setRange(x.id)} className={`min-h-touch px-4 font-semibold ${range === x.id ? 'bg-accent text-white' : 'bg-surface-2 hover:text-accent'}`} data-testid={`range-${x.id}`}>
+            <button key={x.id} type="button" aria-pressed={range === x.id} onClick={() => setRange(x.id)} className={`min-h-touch px-4 font-semibold ${range === x.id ? 'bg-accent text-white' : 'bg-surface-2 hover:text-accent-text'}`} data-testid={`range-${x.id}`}>
               {x.label}
             </button>
           ))}
@@ -137,12 +137,12 @@ export default function History() {
         <section className="hud-panel" data-testid="history-empty">
           <p className="font-semibold">No history yet.</p>
           <p className="text-sm text-ink-3">
-            <Link to="/log" className="text-accent underline">Log a reading</Link> or <Link to="/telemetry" className="text-accent underline">sync wearable telemetry</Link> to start your health history.
+            <Link to="/log" className="text-accent-text underline">Log a reading</Link> or <Link to="/telemetry" className="text-accent-text underline">sync wearable telemetry</Link> to start your health history.
           </p>
         </section>
       ) : (
         <>
-          <TrendChart id="score" title="Daily health score" unit="0–100" data={scores} xDomain={xDomain} lines={[{ key: 'score', name: 'Score', color: '#e8eef8' }]} domain={[0, 100]} bands={[{ from: 0, to: 60, severity: 'red' }, { from: 60, to: SCORE.bands[0].min, severity: 'amber' }, { from: SCORE.bands[0].min, to: 100, severity: 'green' }]} note="Score at the end of each day, from the readings current at that time." />
+          <TrendChart id="score" title="Daily health score" unit="0–100" data={scores} xDomain={xDomain} lines={[{ key: 'score', name: 'Score', color: 'rgb(var(--c-ink))' }]} domain={[0, 100]} bands={[{ from: 0, to: 60, severity: 'red' }, { from: 60, to: SCORE.bands[0].min, severity: 'amber' }, { from: SCORE.bands[0].min, to: 100, severity: 'green' }]} note="Score at the end of each day, from the readings current at that time." />
           <div className="grid gap-4 lg:grid-cols-2">
             {charts.map((c) => (
               <TrendChart key={c.id} {...c} data={points} xDomain={xDomain} />

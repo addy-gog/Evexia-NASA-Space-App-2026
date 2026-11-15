@@ -15,7 +15,7 @@ function ScoreMini({ score, band }) {
   return (
     <div className="relative h-[52px] w-[52px] flex-none">
       <svg width="52" height="52" viewBox="0 0 52 52" role="img" aria-label={score == null ? 'No score' : `Health score ${score}, ${band}`}>
-        <circle cx="26" cy="26" r="20" fill="none" stroke="#EEF1F5" strokeWidth="6" />
+        <circle cx="26" cy="26" r="20" fill="none" stroke="rgb(var(--c-line))" strokeWidth="6" />
         {score != null && <circle cx="26" cy="26" r="20" fill="none" stroke={SEVERITY_META[sev].color} strokeWidth="6" strokeLinecap="round" strokeDasharray={`${(score / 100) * C} ${C}`} transform="rotate(-90 26 26)" />}
       </svg>
       <span className="absolute inset-0 flex items-center justify-center font-mono text-sm font-semibold">{score ?? '—'}</span>
@@ -127,14 +127,24 @@ export default function SurgeonOverview() {
 
       <section aria-label="Summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ['Crew mission ready', `${nominal}/${list.length || 5}`, '#E2F4EA', '#0B6B41'],
-          ['Need attention', String(attention), '#FFF1D6', '#8A4B00'],
-          ['Open escalations', String(open.length), '#E8EEFC', '#163BA6'],
-          ['Emergencies', String(emergencies), '#FDE6E8', '#B3141F'],
-        ].map(([label, value, bg, fg]) => (
-          <div key={label} className="rounded-card p-5" style={{ background: bg }} data-testid={`summary-${label.split(' ')[0].toLowerCase()}`}>
-            <p className="text-sm font-semibold" style={{ color: fg }}>{label}</p>
-            <p className="num mt-1 text-[32px] font-semibold text-ink">{value}</p>
+          ['Crew mission ready', `${nominal}/${list.length || 5}`, '34,197,94', 'rgb(var(--ok-fg))', 'M5 12l5 5L20 7'],
+          ['Need attention', String(attention), '245,158,11', 'rgb(var(--warn-fg))', 'M12 3l10 18H2zM12 10v4M12 18h.01'],
+          ['Open escalations', String(open.length), '255,77,85', 'rgb(var(--accent-text))', 'M4 12h12M12 6l6 6-6 6'],
+          ['Emergencies', String(emergencies), '244,63,94', 'rgb(var(--crit-fg))', 'M8 2h8l6 6v8l-6 6H8l-6-6V8zM12 7v6M12 17h.01'],
+        ].map(([label, value, rgb, fg, icon]) => (
+          <div
+            key={label}
+            className="hud-panel flex items-center gap-4 overflow-hidden"
+            style={{ backgroundImage: `radial-gradient(120% 140% at 0% 0%, rgba(${rgb},0.20), transparent 60%)` }}
+            data-testid={`summary-${label.split(' ')[0].toLowerCase()}`}
+          >
+            <span className="grid h-12 w-12 flex-none place-items-center rounded-full" style={{ background: `rgba(${rgb},0.16)`, boxShadow: `inset 0 0 0 1px rgba(${rgb},0.35)` }} aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg>
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold" style={{ color: fg }}>{label}</p>
+              <p className="num text-[34px] font-semibold leading-tight text-ink">{value}</p>
+            </div>
           </div>
         ))}
       </section>
@@ -155,7 +165,7 @@ export default function SurgeonOverview() {
         <section aria-labelledby="inbox-h" className="min-w-0 flex-[1_1_340px]">
           <div className="mb-3 flex items-center justify-between">
             <h2 id="inbox-h" className="hud-title">Incoming escalations</h2>
-            <Link to="/surgeon/escalations" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">All</Link>
+            <Link to="/surgeon/escalations" className="text-sm font-semibold text-accent-text underline-offset-2 hover:underline">All</Link>
           </div>
           {esc === null ? (
             <p className="text-ink-3" role="status">Loading…</p>

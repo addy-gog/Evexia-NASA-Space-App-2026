@@ -10,8 +10,13 @@ import { GUIDE } from '../content/guide.js';
 import { HAZARDS } from '../content/hazards.js';
 import { useHealthStore, usePrefersReducedMotion } from '../store/useHealthStore.js';
 import { hasWebGL } from '../lib/webgl.js';
+import { BODY_MODELS, bodyKindFor } from '../config/anatomy.js';
+import { shouldAskFirst, rememberConsent } from '../lib/bodyConsent.js';
 
+// Light primitive body (fallback on slow connections) and the realistic body shared with the Body page.
 const Body3D = lazy(() => import('./Body3D.jsx'));
+const AnatomyViewer = lazy(() => import('./body/AnatomyViewer.jsx'));
+const LABELS = Object.fromEntries(Object.entries(HOTSPOTS).map(([id, h]) => [id, h.short]));
 
 export { hasWebGL };
 
@@ -56,7 +61,7 @@ export function ReadingDetail({ id, result, reading }) {
   const msg = !result ? 'No current reading. Log one to see its status.' : sev === 'green' ? `${meta.label} is in range.` : g[sev].meaning;
   const act = !result ? '' : sev === 'green' ? GREEN_MESSAGE : g[sev].selfCare[0];
   return (
-    <div className="rise flex flex-col gap-2 rounded-2xl border p-4" style={{ background: m ? m.bg : '#F4F6F8', borderColor: m ? m.line : '#DDE2E9' }} data-testid="reading-detail" data-indicator={id}>
+    <div className="rise flex flex-col gap-2 rounded-2xl border p-4" style={{ background: m ? m.bg : 'rgb(var(--c-surface))', borderColor: m ? m.line : 'rgb(var(--c-line))' }} data-testid="reading-detail" data-indicator={id}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-display text-base font-semibold">
           {meta.label} · <span className="num">{result ? `${formatIndicatorValue(id, reading)} ${meta.unit}` : '—'}</span>
@@ -69,7 +74,7 @@ export function ReadingDetail({ id, result, reading }) {
       {result?.reason && <p className="m-0 text-sm text-ink-2" data-testid="reading-reason">{result.reason}</p>}
       <p className="m-0 text-sm text-ink-2">
         <strong>How to measure:</strong> {guide.steps.slice(0, 2).join(' ')}{' '}
-        <Link to={`/guide#guide-${id}`} className="font-semibold text-accent underline-offset-2 hover:underline">Full guide</Link>
+        <Link to={`/guide#guide-${id}`} className="font-semibold text-accent-text underline-offset-2 hover:underline">Full guide</Link>
       </p>
       <p className="m-0 text-xs text-ink-3">Linked hazard: {HAZARDS[g.hazard].label}</p>
     </div>
@@ -92,6 +97,12 @@ export default function BodyView({ status: statusProp, selected: selProp, onSele
   const selected = selProp ?? selLocal;
   const onSelect = onSelProp ?? setSelLocal;
 
+  const profile = useHealthStore((s) => s.profile);
+  const kind = bodyKindFor(profile?.sex);
+  // Realistic body unless the connection is slow; then the light body plus a "load" button.
+  const [realistic, setRealistic] = useState(() => !shouldAskFirst());
+  const orientation = useMemo(() => ({ azimuth: yaw }), [yaw]);
+
   const regions = useMemo(() => buildRegions(status.results, status.reading), [status]);
   const use3D = webgl && !simpleView;
   const step = (20 * Math.PI) / 180;
@@ -104,7 +115,7 @@ export default function BodyView({ status: statusProp, selected: selProp, onSele
           <h2 id="body-title" className="hud-title">Body map</h2>
           <p className="text-sm text-ink-3">
             Tap a marker to see what it means.{' '}
-            <Link to={`/body?reading=${selected}`} className="font-semibold text-accent underline-offset-2 hover:underline" data-testid="open-body-page">Open full body view</Link>
+            <Link to={`/body?reading=${selected}`} className="font-semibold text-accent-text underline-offset-2 hover:underline" data-testid="open-body-page">Open full body view</Link>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -128,21 +139,35 @@ export default function BodyView({ status: statusProp, selected: selProp, onSele
       </div>
 
       <div
-        className="relative h-[420px] w-full overflow-hidden rounded-2xl border border-[#E6EAF0] bg-[#F7F9FC] sm:h-[500px]"
+        className="relative h-[420px] w-full overflow-hidden rounded-2xl border border-line bg-[rgb(var(--stage-bg))] sm:h-[500px]"
         data-view={use3D ? '3d' : '2d'}
         data-testid="body-container"
-        style={{ backgroundImage: 'linear-gradient(#E9EDF3 1px, transparent 1px), linear-gradient(90deg, #E9EDF3 1px, transparent 1px)', backgroundSize: '28px 28px' }}
+        style={{ backgroundImage: 'linear-gradient(rgb(var(--c-line) / 0.45) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--c-line) / 0.45) 1px, transparent 1px)', backgroundSize: '28px 28px' }}
       >
         {use3D ? (
           <WebGLBoundary fallback={<Body2D regions={regions} selected={selected} onSelect={onSelect} reduced={reduced} />}>
             <Suspense fallback={<div className="flex h-full items-center justify-center text-ink-3" role="status">Loading 3D body…</div>}>
-              <Body3D regions={regions} selected={selected} onSelect={onSelect} yaw={yaw} reduced={reduced} />
+              {realistic ? (
+                <div className="absolute inset-0" data-testid="body-3d" data-model="realistic">
+                  <AnatomyViewer kind={kind} view="outside" explode={0} orientation={orientation} regions={regions} selected={selected} onSelect={onSelect} reduced={reduced} labels={LABELS} zoom={false} markerTestId="hotspot" />
+                </div>
+              ) : (
+                <Body3D regions={regions} selected={selected} onSelect={onSelect} yaw={yaw} reduced={reduced} />
+              )}
             </Suspense>
           </WebGLBoundary>
         ) : (
           <Body2D regions={regions} selected={selected} onSelect={onSelect} reduced={reduced} />
         )}
-        {use3D && <span className="pointer-events-none absolute bottom-3 left-3 rounded-lg border border-[#E6EAF0] bg-surface px-2 py-1 text-[11px] text-ink-3">Drag to rotate · ±40°</span>}
+        {use3D && <span className="pointer-events-none absolute bottom-3 left-3 rounded-lg border border-line bg-surface px-2 py-1 text-[11px] text-ink-3">Drag to rotate</span>}
+        {use3D && !realistic && (
+          <button type="button" className="btn-ghost absolute bottom-3 right-3 min-h-touch bg-surface px-3 text-sm" onClick={() => {
+              rememberConsent();
+              setRealistic(true);
+            }} data-testid="load-realistic-body">
+            Load realistic body ({BODY_MODELS[kind].outerMB} MB)
+          </button>
+        )}
       </div>
 
       <ReadingDetail id={selected} result={status.results[selected]} reading={status.reading} />

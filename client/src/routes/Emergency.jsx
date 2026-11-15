@@ -135,7 +135,7 @@ export default function Emergency() {
                 {sit.steps.map((step) => (
                   <li key={step}>
                     <label className="flex min-h-touch items-start gap-3">
-                      <input type="checkbox" className="mt-1 h-6 w-6 shrink-0 accent-[#B3141F]" checked={Boolean(done[step])} onChange={(e) => setDone((d) => ({ ...d, [step]: e.target.checked }))} />
+                      <input type="checkbox" className="mt-1 h-6 w-6 shrink-0 accent-[#D7333A]" checked={Boolean(done[step])} onChange={(e) => setDone((d) => ({ ...d, [step]: e.target.checked }))} />
                       <span>{step}</span>
                     </label>
                   </li>

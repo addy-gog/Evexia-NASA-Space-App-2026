@@ -44,7 +44,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen">
       <main id="main" className="mx-auto grid min-h-screen max-w-page items-center gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.1fr_1fr]">
         <section className="flex flex-col gap-6" aria-labelledby="login-hero">
           <div className="flex items-center gap-3">
@@ -60,7 +60,7 @@ export default function Login() {
           </div>
           <div className="hidden items-center gap-5 rounded-card border border-line bg-surface p-5 lg:flex">
             <span className="relative block h-[96px] w-[96px] flex-none rounded-full bg-accent-soft" aria-hidden="true">
-              <span className="orbit absolute inset-[6px] block rounded-full border-[1.5px] border-dashed border-[#9DB3F0]">
+              <span className="orbit absolute inset-[6px] block rounded-full border-[1.5px] border-dashed border-accent-text/70">
                 <span className="absolute -top-1 left-1/2 block h-2 w-2 rounded-full bg-accent" />
               </span>
               <span className="absolute -top-2 left-1/2 block -translate-x-1/2"><CompanionStill size={96} /></span>

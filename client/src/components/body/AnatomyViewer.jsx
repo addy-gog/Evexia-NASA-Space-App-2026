@@ -18,8 +18,9 @@ import { SEVERITY_META, GRADE_OF } from '../Status.jsx';
 import { BODY_HEIGHT, BODY_MODELS, MARKERS, MARKER_PART, MARKER_SIDE, PARTS_FOR, SCAN, VIEW_BY_ID, armOpacityAt, bandAt, isInside } from '../../config/anatomy.js';
 import { ANATOMY_COLORS } from '../../config/anatomyColors.js';
 
-const ACCENT = '#1F4FD8'; // Evexia accent token
-const NONE = '#9AA6B8';
+const ACCENT = '#38BDF8'; // scan-ring blue (teammate design: blue-ring scan), bright enough for the dark stage
+const SELECT = '#FF4D55'; // Evexia accent (selection)
+const NONE = '#6B7894';
 const TARGET = new THREE.Vector3(0, 0.92, 0);
 const CAMERA_DISTANCE = 4.1;
 const withMeshopt = (loader) => loader.setMeshoptDecoder(MeshoptDecoder);
@@ -106,6 +107,7 @@ function OuterBody({ kind, uniforms, visible, onReady, widthRef }) {
 
 function InnerBody({ kind, uniforms, visible, view, explode, regions, selected, onReady, reduced, offsets }) {
   const cfg = BODY_MODELS[kind];
+  const { invalidate } = useThree();
   const gltf = useLoader(GLTFLoader, cfg.anatomy, withMeshopt);
   const { root, meshes, scale } = useMemo(() => {
     const r = gltf.scene.clone(true);
@@ -156,13 +158,15 @@ function InnerBody({ kind, uniforms, visible, view, explode, regions, selected, 
       mat.emissive.set(c ?? '#000000');
       mat.emissiveIntensity = c ? (glow.sev === 'red' ? 0.55 : 0.4) + (glow.selected ? 0.2 : 0) : 0;
     }
-  }, [view, meshes, glowFor]);
+    invalidate();
+  }, [view, meshes, glowFor, invalidate]);
 
   // Exploded view: parts slide outward; everything else eases back home.
   const spread = useRef(0);
-  useFrame((_, dt) => {
-    const want = view === 'exploded' ? explode : 0;
+  useFrame((state, dt) => {
+    const want = view === "exploded" ? explode : 0;
     if (Math.abs(spread.current - want) < 0.001 && spread.current === want) return;
+    state.invalidate(); // render on demand: keep drawing until the parts settle
     spread.current = reduced ? want : spread.current + (want - spread.current) * Math.min(1, dt * 7);
     if (Math.abs(spread.current - want) < 0.001) spread.current = want;
     for (const m of meshes) {
@@ -176,7 +180,7 @@ function InnerBody({ kind, uniforms, visible, view, explode, regions, selected, 
 }
 
 /** One marker: status dot, pulse ring, 44 px button and a value pill. Rides with its part's offset. */
-function Marker({ id, position, offset, side, r, label, selected, onSelect }) {
+function Marker({ id, position, offset, side, r, label, selected, onSelect, testId = "body-marker" }) {
   const sev = r?.severity;
   const m = sev ? SEVERITY_META[sev] : null;
   const group = useRef();
@@ -186,24 +190,24 @@ function Marker({ id, position, offset, side, r, label, selected, onSelect }) {
   return (
     <group ref={group} position={position}>
     <Html zIndexRange={[40, 0]} style={{ pointerEvents: 'none' }}>
-      <div style={{ position: 'relative', width: 0, height: 0 }} data-marker={id} data-severity={sev ?? 'none'}>
+      <div style={{ position: 'relative', width: 0, height: 0 }} data-marker={id} data-region={id} data-severity={sev ?? 'none'}>
         {m && <span aria-hidden="true" className={`ring-g${GRADE_OF[sev]}`} style={{ position: 'absolute', left: -10, top: -10, width: 20, height: 20, borderRadius: '50%', border: `2px solid ${m.color}`, boxSizing: 'border-box' }} />}
         <button
           type="button"
           onClick={() => onSelect(id)}
           aria-pressed={selected}
           aria-label={r ? `${r.label}: ${r.valueText}, ${m.label}. Show details.` : `${label}: no current reading. Show details.`}
-          data-testid={`body-marker-${id}`}
+          data-testid={`${testId}-${id}`}
           style={{ position: 'absolute', left: -22, top: -22, width: 44, height: 44, borderRadius: '50%', background: 'transparent', border: 0, padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto' }}
         >
-          <span style={{ width: selected ? 20 : 16, height: selected ? 20 : 16, borderRadius: '50%', background: m ? m.color : NONE, border: '3px solid #FFFFFF', boxShadow: selected ? '0 0 0 3px rgba(31,79,216,.35), 0 2px 6px rgba(14,23,38,.3)' : '0 2px 6px rgba(14,23,38,.3)', display: 'block' }} />
+          <span style={{ width: selected ? 20 : 16, height: selected ? 20 : 16, borderRadius: '50%', background: m ? m.color : NONE, border: '3px solid #FFFFFF', boxShadow: selected ? '0 0 0 3px rgba(255,77,85,.45), 0 2px 8px rgba(0,0,0,.5)' : '0 2px 8px rgba(0,0,0,.5)', display: 'block' }} />
         </button>
         <span
           aria-hidden="true"
           className="font-mono"
-          style={{ position: 'absolute', [side === 'left' ? 'right' : 'left']: 24, top: -14, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6, padding: '4px 9px', borderRadius: 999, background: '#FFFFFF', border: `1px solid ${selected ? ACCENT : m ? m.line : '#DDE2E9'}`, boxShadow: '0 4px 12px rgba(14,23,38,.10)', fontSize: 12, fontWeight: 600, color: '#0E1726' }}
+          style={{ position: 'absolute', [side === 'left' ? 'right' : 'left']: 24, top: -14, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6, padding: '4px 9px', borderRadius: 999, background: 'rgb(var(--c-surface) / 0.88)', border: `1px solid ${selected ? SELECT : m ? m.line : 'rgb(var(--c-line))'}`, boxShadow: '0 4px 14px rgba(0,0,0,.35)', fontSize: 12, fontWeight: 600, color: 'rgb(var(--c-ink))' }}
         >
-          <span style={{ fontFamily: 'Inter, sans-serif', color: '#4A5568' }}>{label}</span>
+          <span style={{ fontFamily: 'Inter, sans-serif', color: 'rgb(var(--c-ink-3))' }}>{label}</span>
           {r ? r.shortValue : '—'}
         </span>
       </div>
@@ -230,12 +234,13 @@ function ScanRing({ ringRef }) {
 
 /** Glide the camera around the body when Front / Side / Back is pressed. */
 function CameraRig({ orientation, reduced }) {
-  const { camera, controls } = useThree();
+  const { camera, controls, invalidate } = useThree();
   const goal = useRef(null);
   useEffect(() => {
     if (orientation) goal.current = orientation.azimuth;
-  }, [orientation]);
-  useFrame((_, dt) => {
+    invalidate();
+  }, [orientation, invalidate]);
+  useFrame((state, dt) => {
     if (goal.current === null || !controls) return;
     const offset = camera.position.clone().sub(controls.target);
     const sph = new THREE.Spherical().setFromVector3(offset);
@@ -246,6 +251,7 @@ function CameraRig({ orientation, reduced }) {
       goal.current = null;
     } else {
       sph.theta += diff * Math.min(1, dt * 5);
+      state.invalidate();
     }
     camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(sph));
     controls.update();
@@ -253,7 +259,8 @@ function CameraRig({ orientation, reduced }) {
   return null;
 }
 
-function Scene({ kind, view, explode, orientation, regions, selected, onSelect, reduced, labels, onStatus }) {
+function Scene({ kind, view, explode, orientation, regions, selected, onSelect, reduced, labels, onStatus, markerTestId }) {
+  const { invalidate } = useThree();
   const uniforms = useMemo(() => ({ uBand: { value: 99 }, uArmFade: { value: 1 }, uScan: { value: 0 } }), []);
   const arms = BODY_MODELS[kind].arms;
   const widthRef = useRef(() => arms.torso);
@@ -299,15 +306,22 @@ function Scene({ kind, view, explode, orientation, regions, selected, onSelect, 
     anim.current = { start: performance.now(), direction: target === 'inner' ? 'down' : 'up', target };
     uniforms.uScan.value = 1;
     setShown('both');
-  }, [inside, innerReady, reduced, uniforms]);
+    invalidate();
+  }, [inside, innerReady, reduced, uniforms, invalidate]);
 
-  useFrame(() => {
+  // Render on demand: one redraw whenever what the body shows changes.
+  useEffect(() => {
+    invalidate();
+  }, [regions, selected, shown, view, kind, invalidate]);
+
+  useFrame((state) => {
     const a = anim.current;
     const ring = ringRef.current;
     if (!a) {
       if (ring) ring.visible = false;
       return;
     }
+    state.invalidate(); // keep drawing while the scan ring moves
     const p = Math.min(1, (performance.now() - a.start) / (SCAN.seconds * 1000));
     const y = bandAt(p, a.direction);
     const armFade = armOpacityAt(y, arms);
@@ -354,7 +368,7 @@ function Scene({ kind, view, explode, orientation, regions, selected, onSelect, 
       )}
       <ScanRing ringRef={ringRef} />
       {Object.entries(MARKERS[kind]).map(([id, pos]) => (
-        <Marker key={id} id={id} position={pos} offset={offsets.current.get(MARKER_PART[id])} side={MARKER_SIDE[id]} r={regions[id]} label={labels[id]} selected={selected === id} onSelect={onSelect} />
+        <Marker key={id} id={id} position={pos} offset={offsets.current.get(MARKER_PART[id])} side={MARKER_SIDE[id]} r={regions[id]} label={labels[id]} selected={selected === id} onSelect={onSelect} testId={markerTestId} />
       ))}
       <CameraRig orientation={orientation} reduced={reduced} />
     </>
@@ -369,11 +383,15 @@ function Scene({ kind, view, explode, orientation, regions, selected, onSelect, 
  * @param {object} regions         { [indicatorId]: { severity, label, valueText, shortValue } | null }
  * @param {object} labels          { [indicatorId]: short label }
  * @param {(status) => void} onStatus  reports { outerReady, innerLoading }
+ * @param {boolean} zoom          scroll-to-zoom (off on the Console so the page still scrolls)
+ * @param {string} markerTestId   test-id prefix for marker buttons (the Console keeps its "hotspot" ids)
+ * Renders on demand (frameloop "demand"): frames are drawn only while something moves or changes.
  */
-export default function AnatomyViewer({ kind, view, explode, orientation, regions, selected, onSelect, reduced, labels, onStatus }) {
+export default function AnatomyViewer({ kind, view, explode, orientation, regions, selected, onSelect, reduced, labels, onStatus, zoom = true, markerTestId = "body-marker" }) {
   return (
     <div className="absolute inset-0" data-testid="anatomy-viewer" data-kind={kind} data-view={view}>
       <Canvas
+        frameloop="demand"
         camera={{ position: [0, TARGET.y + 0.1, CAMERA_DISTANCE], fov: 30, near: 0.05, far: 50 }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true }}
@@ -384,10 +402,11 @@ export default function AnatomyViewer({ kind, view, explode, orientation, region
         <hemisphereLight args={['#FFFFFF', '#B8C2D0', 1.6]} />
         <directionalLight position={[1.5, 3, 2.5]} intensity={2.2} />
         <directionalLight position={[-2, 2, -2]} intensity={0.8} />
-        <Scene kind={kind} view={view} explode={explode} orientation={orientation} regions={regions} selected={selected} onSelect={onSelect} reduced={reduced} labels={labels} onStatus={onStatus} />
+        <Scene kind={kind} view={view} explode={explode} orientation={orientation} regions={regions} selected={selected} onSelect={onSelect} reduced={reduced} labels={labels} onStatus={onStatus} markerTestId={markerTestId} />
         <OrbitControls
           makeDefault
           enablePan={false}
+          enableZoom={zoom}
           minDistance={1.3}
           maxDistance={5.5}
           minPolarAngle={Math.PI * 0.32}

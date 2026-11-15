@@ -2,20 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Light clinical theme (default) */
+/* Deep-space theme (default): dark glass over a live starfield */
 :root {
-  --c-bg: 244 246 248;        /* #F4F6F8 */
-  --c-surface: 255 255 255;   /* #FFFFFF */
-  --c-surface-2: 238 241 245; /* #EEF1F5 */
-  --c-line: 221 226 233;      /* #DDE2E9 */
+  --c-bg: 5 10 24;            /* #050A18 */
+  --c-surface: 13 19 36;      /* #0D1324 */
+  --c-surface-2: 24 32 54;    /* #182036 */
+  --c-line: 44 56 86;         /* #2C3856 */
+  --c-ink: 238 242 250;       /* #EEF2FA */
+  --c-ink-2: 200 209 226;     /* #C8D1E2 */
+  --c-ink-3: 150 163 189;     /* #96A3BD (≈7:1 on surface) */
+  --glass: 13 19 36;
+  --glass-a: 0.76;
+  --accent-text: 255 123 128;  /* #FF7B80 red text on dark */
+  --accent-soft: 43 18 25;     /* #2B1219 */
+  --ok-fg: 91 228 155;   --ok-bg: 14 42 32;   --ok-line: 31 90 61;
+  --warn-fg: 255 200 97; --warn-bg: 46 35 17; --warn-line: 110 80 22;
+  --crit-fg: 255 138 148; --crit-bg: 51 18 28; --crit-line: 122 34 54;
+  --stage-bg: 7 12 28;   --stage-glow: 22 34 66;
+  --chrome: 6 11 26;     /* header, sidebar, tab bar */
+  color-scheme: dark;
+}
+
+/* Light theme: pale dawn sky, white glass, original clinical status tints */
+:root[data-theme='light'] {
+  --c-bg: 236 241 248;        /* #ECF1F8 */
+  --c-surface: 255 255 255;
+  --c-surface-2: 241 244 249;
+  --c-line: 214 221 232;      /* #D6DDE8 */
   --c-ink: 14 23 38;          /* #0E1726 */
-  --c-ink-2: 51 64 79;        /* #33404F */
+  --c-ink-2: 51 64 79;
   --c-ink-3: 74 85 104;       /* #4A5568 (7.5:1 on white) */
+  --glass: 255 255 255;
+  --glass-a: 0.84;
+  --accent-text: 179 36 43;   /* #B3242B (6.4:1 on white) */
+  --accent-soft: 253 232 233;
+  --ok-fg: 11 107 65;    --ok-bg: 226 244 234;  --ok-line: 158 211 182;
+  --warn-fg: 138 75 0;   --warn-bg: 255 241 214; --warn-line: 240 199 122;
+  --crit-fg: 179 20 31;  --crit-bg: 253 230 232; --crit-line: 242 163 170;
+  --stage-bg: 232 238 247; --stage-glow: 255 255 255;
+  --chrome: 255 255 255;
   color-scheme: light;
 }
 
-/* High-contrast theme: pure white surfaces, black text, dark borders */
+/* High-contrast theme: solid black surfaces, white text, bright borders, no glass */
 :root[data-contrast='high'] {
+  --c-bg: 0 0 0;
+  --c-surface: 0 0 0;
+  --c-surface-2: 20 20 20;
+  --c-line: 230 230 230;
+  --c-ink: 255 255 255;
+  --c-ink-2: 255 255 255;
+  --c-ink-3: 235 235 235;
+  --glass-a: 1;
+  --chrome: 0 0 0;
+}
+/* High contrast in the light theme: pure white surfaces, black text, dark borders */
+:root[data-theme='light'][data-contrast='high'] {
   --c-bg: 255 255 255;
   --c-surface: 255 255 255;
   --c-surface-2: 240 240 240;
@@ -23,6 +65,7 @@
   --c-ink: 0 0 0;
   --c-ink-2: 0 0 0;
   --c-ink-3: 20 20 20;
+  --chrome: 255 255 255;
 }
 
 /* Text-size toggle (3 levels). Tailwind uses rem, so everything scales. */
@@ -39,39 +82,58 @@ body {
 
 h1, h2, h3 { font-family: 'Space Grotesk', Inter, sans-serif; letter-spacing: -0.01em; }
 
-/* Focus ring: 3 px accent, 2 px offset, on every control */
+/* Focus ring: 3 px bright red, 2 px offset, on every control */
 :focus-visible {
-  outline: 3px solid #1F4FD8;
+  outline: 3px solid #FF4D55;
   outline-offset: 2px;
   border-radius: 6px;
 }
 /* The assistant's message box rings as a whole, so there is no second box inside it. */
 .composer:has(#assistant-input:focus-visible) {
-  outline: 3px solid #1F4FD8;
+  outline: 3px solid #FF4D55;
   outline-offset: 2px;
 }
 .composer #assistant-input:focus-visible {
   outline: none;
 }
 
+::selection { background: rgba(255, 77, 85, 0.35); color: #fff; }
+
+/* Thin dark scrollbars */
+* { scrollbar-width: thin; scrollbar-color: rgb(var(--c-line)) transparent; }
+
 @layer components {
-  /* Card: white surface, thin border, no heavy shadow */
-  .hud-panel { @apply relative min-w-0 rounded-card border border-line bg-surface p-5; }
-  .tile { @apply rounded-tile bg-surface-2 p-3; }
+  /* Card: frosted dark glass so the starfield reads through, hairline border, top highlight */
+  .hud-panel {
+    @apply relative min-w-0 rounded-card border border-ink/[0.08] p-5;
+    background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0) 40%), rgb(var(--glass) / var(--glass-a));
+    /* No backdrop-filter here: re-blurring the animated starfield under every panel cost ~5x frame time. */
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 18px 40px rgba(0,0,0,0.28);
+  }
+  /* Feature card: deep red glow (reference: Lumen SpO2 / body-temperature cards) */
+  .hud-feature {
+    @apply relative min-w-0 overflow-hidden rounded-card border border-accent/30 p-5 text-white;
+    /* Always a dark card (light theme too, as in the reference), so it keeps the dark-theme text tokens. */
+    --c-ink: 238 242 250; --c-ink-2: 222 205 210; --c-ink-3: 214 184 190;
+    --ok-fg: 91 228 155; --warn-fg: 255 200 97; --crit-fg: 255 138 148; --accent-text: 255 123 128;
+    background: radial-gradient(120% 90% at 0% 0%, rgba(255,77,85,0.28), transparent 55%), linear-gradient(160deg, #3A0E16 0%, #1A0910 55%, #10070C 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 18px 40px rgba(60,6,14,0.45);
+  }
+  .tile { @apply rounded-tile border border-ink/[0.05] bg-ink/[0.04] p-3; }
   .hud-title { @apply font-display text-lg font-semibold text-ink; }
-  .page-title { @apply font-display font-bold tracking-tight text-ink; font-size: clamp(26px, 3vw, 36px); }
-  .eyebrow { @apply text-xs font-bold uppercase tracking-[0.08em] text-accent; }
+  .page-title { @apply font-display font-bold tracking-tight text-ink; font-size: clamp(28px, 3.2vw, 40px); }
+  .eyebrow { @apply text-xs font-bold uppercase tracking-[0.14em] text-accent-text; }
 
   .btn {
-    @apply inline-flex min-h-[48px] min-w-touch items-center justify-center gap-2 rounded-input border px-4 py-2 font-semibold transition-colors disabled:cursor-not-allowed disabled:border-surface-2 disabled:bg-surface-2 disabled:text-ink-3;
+    @apply inline-flex min-h-[48px] min-w-touch cursor-pointer items-center justify-center gap-2 rounded-input border px-4 py-2 font-semibold transition-colors duration-200 disabled:cursor-not-allowed disabled:border-surface-2 disabled:bg-surface-2 disabled:text-ink-3;
   }
-  .btn-primary { @apply btn border-accent bg-accent text-white hover:border-accent-strong hover:bg-accent-strong; }
-  .btn-ghost { @apply btn border-line bg-surface text-ink hover:border-[#B8C2D3] hover:bg-surface-2; }
-  .btn-danger { @apply btn border-crit-fg bg-crit-fg text-white hover:bg-[#8F0F19]; } /* white on #B3141F ≈ 6.3:1 */
-  .pill { @apply inline-flex items-center gap-2 rounded-full border border-line bg-bg px-3 py-2 text-[13px] font-semibold; }
+  .btn-primary { @apply btn border-accent bg-accent text-white shadow-glow hover:border-accent-glow hover:bg-accent-strong; }
+  .btn-ghost { @apply btn border-ink/10 bg-ink/[0.04] text-ink hover:border-ink/25 hover:bg-ink/[0.09]; }
+  .btn-danger { @apply btn border-[#E11D48] bg-[#BE123C] text-white hover:bg-[#9F1239]; } /* white on #BE123C ≈ 6.1:1 */
+  .pill { @apply inline-flex items-center gap-2 rounded-full border border-ink/10 bg-ink/[0.04] px-3 py-2 text-[13px] font-semibold; }
 
   .field {
-    @apply min-h-touch w-full rounded-input border border-[#C9D1DC] bg-surface px-3 py-2 font-mono text-lg text-ink placeholder:text-ink-3;
+    @apply min-h-touch w-full rounded-input border border-ink/15 bg-surface/70 px-3 py-2 font-mono text-lg text-ink placeholder:text-ink-3 focus:border-accent-glow;
   }
   .field[aria-invalid='true'] { @apply border-crit-dot; }
   .label { @apply text-sm font-semibold text-ink; }
@@ -89,15 +151,15 @@ input[type='range'] {
 }
 input[type='range']::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: rgb(var(--c-surface-2)); box-shadow: inset 0 0 0 1px rgb(var(--c-line)); }
 input[type='range']::-moz-range-track { height: 6px; border-radius: 999px; background: rgb(var(--c-surface-2)); }
-input[type='range']::-moz-range-progress { height: 6px; border-radius: 999px; background: #1F4FD8; }
+input[type='range']::-moz-range-progress { height: 6px; border-radius: 999px; background: #D7333A; }
 input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 24px; height: 24px; margin-top: -9px; border-radius: 50%;
-  background: #1F4FD8; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(14,23,38,.25);
+  background: #D7333A; border: 3px solid #fff; box-shadow: 0 0 0 4px rgba(255,77,85,.22), 0 2px 8px rgba(0,0,0,.5);
 }
 input[type='range']::-moz-range-thumb {
   width: 24px; height: 24px; border-radius: 50%;
-  background: #1F4FD8; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(14,23,38,.25);
+  background: #D7333A; border: 3px solid #fff; box-shadow: 0 0 0 4px rgba(255,77,85,.22), 0 2px 8px rgba(0,0,0,.5);
 }
 
 .sr-only-focusable:not(:focus) {
@@ -142,9 +204,14 @@ input[type='range']::-moz-range-thumb {
   :root:not([data-reduced-motion='false']) *::after { animation: none !important; transition: none !important; }
 }
 
-/* Recharts on light surfaces */
-.recharts-text { fill: #4A5568; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
-.recharts-cartesian-grid line { stroke: #E6EAF0; }
+/* Recharts on dark glass */
+.recharts-text { fill: rgb(var(--c-ink-3)); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.recharts-cartesian-grid line { stroke: rgb(var(--c-ink-3) / 0.16); }
+.recharts-default-tooltip { background: rgb(var(--c-surface)) !important; border-color: rgb(var(--c-line)) !important; border-radius: 12px; color: rgb(var(--c-ink)); }
+
+/* High contrast drops the glass entirely */
+:root[data-contrast="high"] .hud-panel { background: rgb(var(--c-surface)); border-color: rgb(var(--c-line)); box-shadow: none; }
+:root[data-theme="light"] .hud-panel { box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 10px 30px rgba(14,23,38,0.08); }
 
 @media print {
   body { background: #fff; color: #000; }

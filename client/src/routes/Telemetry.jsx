@@ -202,7 +202,7 @@ function SyncPanel({ now }) {
           Sync to log now
         </button>
         <label className="flex min-h-touch items-center gap-2 text-sm">
-          <input type="checkbox" className="h-5 w-5 accent-[#1F4FD8]" checked={autoSync.enabled} onChange={(e) => setAutoSync({ enabled: e.target.checked })} data-testid="auto-sync" />
+          <input type="checkbox" className="h-5 w-5 accent-[#FF4D55]" checked={autoSync.enabled} onChange={(e) => setAutoSync({ enabled: e.target.checked })} data-testid="auto-sync" />
           Auto-sync every
         </label>
         <select className="field w-auto py-1 font-sans text-base" aria-label="Auto-sync interval" value={autoSync.minutes} onChange={(e) => setAutoSync({ minutes: Number(e.target.value) })}>
