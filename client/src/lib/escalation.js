@@ -59,6 +59,7 @@ export function validateEscalationPayload(p) {
   if (!p.readings || typeof p.readings !== 'object') errors.push('readings are required.');
   if (!p.severities || typeof p.severities !== 'object') errors.push('severities are required.');
   if (p.priority !== undefined && !['routine', 'emergency'].includes(p.priority)) errors.push('priority must be "routine" or "emergency".');
+  if (p.clientId !== undefined && (typeof p.clientId !== 'string' || !p.clientId || p.clientId.length > 80)) errors.push('clientId must be a string up to 80 characters.');
   return errors;
 }
 

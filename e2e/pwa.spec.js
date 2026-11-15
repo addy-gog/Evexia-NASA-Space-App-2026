@@ -28,5 +28,23 @@ test.describe('Progressive Web App (PWA) and offline capabilities', () => {
     expect(swRes.ok()).toBeTruthy();
     const text = await swRes.text();
     expect(text).toContain('workbox');
+    // The 3D bodies (4-8 MB each) are saved when first viewed, never pre-downloaded on the first visit.
+    expect(text).not.toMatch(/models\/[a-z-]+\.glb/);
+  });
+
+  test('with the network switched off, the app still opens', async ({ page, context }) => {
+    await page.goto('/login');
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+    await page.reload(); // from now on the service worker serves this page
+    await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+    await context.setOffline(true);
+    try {
+      await page.reload();
+      await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    } finally {
+      await context.setOffline(false);
+    }
   });
 });

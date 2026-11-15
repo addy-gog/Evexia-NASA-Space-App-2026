@@ -190,6 +190,18 @@ describe('Earth link API', () => {
     expect(JSON.stringify(mine)).not.toContain('ground-only note');
   });
 
+  it('a report resent from the outbox with the same clientId is stored once', async () => {
+    const me = await signIn(app, 'okafor');
+    const body = { ...report(), clientId: 'outbox-test-1' };
+    const first = await me.post('/api/escalations').send(body);
+    const again = await me.post('/api/escalations').send(body);
+    expect(first.status).toBe(201);
+    expect(again.status).toBe(200);
+    expect(again.body.id).toBe(first.body.id);
+    expect((await me.get('/api/escalations')).body.escalations.filter((e) => e.payload.clientId === 'outbox-test-1')).toHaveLength(1);
+    expect((await me.post('/api/escalations').send({ ...body, clientId: 'x'.repeat(81) })).status).toBe(400);
+  });
+
   it('validates link changes and replies; astronauts cannot reply', async () => {
     const me = await signIn(app, 'okafor');
     expect((await me.put('/api/link').send({ mode: 'sideways' })).status).toBe(400);

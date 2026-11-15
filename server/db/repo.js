@@ -40,7 +40,8 @@ export function createRepo(db) {
        ON CONFLICT(crew_id) DO UPDATE SET hr = excluded.hr, sys = excluded.sys, dia = excluded.dia,
          glucose = excluded.glucose, temp = excluded.temp, sleep = excluded.sleep`,
     ),
-    escInsert: db.prepare('INSERT INTO escalations (crew_id, priority, payload_json, status, note, created_at, delay_seconds) VALUES (?, ?, ?, ?, ?, ?, ?)'),
+    escInsert: db.prepare('INSERT INTO escalations (crew_id, priority, payload_json, status, note, created_at, delay_seconds, client_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
+    escByClient: db.prepare('SELECT * FROM escalations WHERE client_id = ?'),
     // Earth link (see server/lib/link.js): reports waiting to leave, emergencies first, then oldest first.
     escWaiting: db.prepare("SELECT * FROM escalations WHERE sent_at IS NULL ORDER BY CASE priority WHEN 'emergency' THEN 0 ELSE 1 END, id"),
     escMarkSent: db.prepare('UPDATE escalations SET sent_at = ?, arrive_at = ?, receipt_at = ? WHERE id = ?'),
@@ -154,9 +155,11 @@ export function createRepo(db) {
 
     insertEscalation(p) {
       const delay = Number(p.delay?.seconds);
-      const info = q.escInsert.run(p.crew.id, p.priority ?? 'routine', JSON.stringify(p), 'new', '', new Date().toISOString(), Number.isFinite(delay) && delay > 0 ? delay : 0);
+      const info = q.escInsert.run(p.crew.id, p.priority ?? 'routine', JSON.stringify(p), 'new', '', new Date().toISOString(), Number.isFinite(delay) && delay > 0 ? delay : 0, p.clientId ?? null);
       return toEsc(plain(q.escOne.get(info.lastInsertRowid)));
     },
+    /** A report already stored under this client id, if any (outbox resends are not duplicates). */
+    escalationByClientId: (clientId) => (clientId ? toEsc(plain(q.escByClient.get(clientId))) : null),
     listEscalations: () => q.escAll.all().map((r) => toEsc(plain(r))),
     getEscalation: (id) => toEsc(plain(q.escOne.get(id))),
     escalationsWaiting: () => q.escWaiting.all().map((r) => toEsc(plain(r))),

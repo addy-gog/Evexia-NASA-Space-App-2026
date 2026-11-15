@@ -302,6 +302,13 @@ export function createApp({
     if (errors.length) return badRequest(res, errors);
     const crewId = crewFor(req, res, req.body.crew.id);
     if (!crewId) return undefined;
+    // An outbox resend of a report we already have: answer with the stored one, no duplicate.
+    const known = repo.escalationByClientId(req.body.clientId);
+    if (known) {
+      if (known.crewId !== crewId) return res.status(409).json({ error: 'id_conflict' });
+      const [view] = reportsFor({ role: 'astronaut', crewId }, [known]);
+      return res.status(200).json(view);
+    }
     const saved = repo.insertEscalation(req.body);
     advanceLink(repo);
     bus.emit('escalation', saved);

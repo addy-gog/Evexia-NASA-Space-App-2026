@@ -16,7 +16,7 @@ import SpaceBackground from './components/SpaceBackground.jsx';
 import { useHealthStore } from './store/useHealthStore.js';
 import { useTelemetryStream, useAutoSync } from './hooks/useTelemetry.js';
 import { api } from './lib/api.js';
-import { flushOutbox } from './lib/outbox.js';
+import { flushOutbox, requestPersistence } from './lib/outbox.js';
 
 // Chart-heavy and ground-side pages load on demand.
 const History = lazy(() => import('./routes/History.jsx'));
@@ -58,6 +58,9 @@ function useEarthLinkMonitor() {
 function useConnectionMonitor() {
   const setApiOnline = useHealthStore((s) => s.setApiOnline);
   useEffect(() => {
+    requestPersistence(); // ask the browser not to clear the outbox when space runs low
+  }, []);
+  useEffect(() => {
     let alive = true;
     const ping = () =>
       api
@@ -67,7 +70,10 @@ function useConnectionMonitor() {
           const s = useHealthStore.getState();
           const wasOffline = s.apiOnline === false;
           setApiOnline(true);
-          flushOutbox(api);
+          // Send anything kept on this device while the onboard server was unreachable.
+          flushOutbox(api).then((r) => {
+            if (r.reports || r.logs) useHealthStore.getState().loadEarthLink();
+          });
           if (wasOffline && s.user?.role === 'astronaut') s.loadLogs(); // flush pending entries
         })
         .catch(() => alive && setApiOnline(false));

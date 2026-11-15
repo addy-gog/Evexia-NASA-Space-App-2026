@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { buildEscalationReport, reportToText } from '../lib/escalation.js';
 import { useHealthStore } from '../store/useHealthStore.js';
-import { api } from '../lib/api.js';
+import { api, newId } from '../lib/api.js';
 import { saveOutboxReport } from '../lib/outbox.js';
 import { GUIDANCE } from '../content/guidance.js';
 
@@ -74,10 +74,13 @@ export default function EscalationDialog({ focusId, onClose, onSent, priority = 
   const toggle = (a) => setActions((cur) => (cur.includes(a) ? cur.filter((x) => x !== a) : [...cur, a]));
   const file = `evexia-${priority === 'emergency' ? 'EMERGENCY' : 'escalation'}-${crew.id}-${report.createdAt.slice(0, 16).replace(/[:T]/g, '')}`;
 
+  // One id per report for its whole life: retries and double taps never create a second copy.
+  const clientId = useRef(newId()).current;
   const send = async () => {
     setStatus({ tone: 'info', msg: 'Sending…' });
+    const payload = { ...report, clientId };
     try {
-      const saved = await api.postEscalation(report);
+      const saved = await api.postEscalation(payload);
       onSent?.(saved);
       // Honest about the Earth link: never imply Earth has it before the receipt comes back.
       const waiting = saved.link?.step === 'waiting';
@@ -89,9 +92,19 @@ export default function EscalationDialog({ focusId, onClose, onSent, priority = 
       });
       s.setApiOnline(true);
       s.loadEarthLink();
-    } catch {
-      await saveOutboxReport(report);
-      setStatus({ tone: 'warn', msg: 'Ground link unavailable: report saved to outbox. Copy or download it and send when the link returns.' });
+    } catch (err) {
+      if (err.status === 400) {
+        setStatus({ tone: 'warn', msg: 'The onboard server could not accept this report. Copy or download it so it is not lost.' });
+        return;
+      }
+      // The onboard server is unreachable: keep the report on this device and send it when it is back.
+      const kept = await saveOutboxReport(payload);
+      setStatus({
+        tone: 'warn',
+        msg: kept
+          ? 'The onboard server is unreachable, so the report is saved on this device. It sends itself when the server is back, then waits for the Earth link.'
+          : 'The onboard server is unreachable and this device could not store the report. Copy or download it so it is not lost.',
+      });
       s.setApiOnline(false);
     }
   };

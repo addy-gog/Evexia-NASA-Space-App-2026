@@ -154,6 +154,11 @@ function migrate(db) {
       UPDATE escalations SET sent_at = created_at, arrive_at = created_at, receipt_at = created_at;
     `);
   }
+  // 15 Nov 2026: the client's own id for a report, so a resend from the outbox is not a duplicate.
+  if (!has('escalations', 'client_id')) {
+    db.exec('ALTER TABLE escalations ADD COLUMN client_id TEXT;');
+    db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_escalations_client_id ON escalations(client_id) WHERE client_id IS NOT NULL;');
+  }
 }
 
 /** Normalise rows (node:sqlite returns null-prototype objects). */

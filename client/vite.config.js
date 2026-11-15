@@ -9,7 +9,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'avatars/*.svg', 'models/*.glb'],
+      // The 3D bodies (4-8 MB each) are NOT pre-downloaded: that cost every first visit about 28 MB
+      // and bypassed the slow-connection question. They are kept the first time they are viewed.
+      includeAssets: ['favicon.svg', 'avatars/*.svg'],
       manifest: {
         name: 'Evexia · Astronaut Health Monitoring Console',
         short_name: 'Evexia',
@@ -30,14 +32,24 @@ export default defineConfig({
         ],
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,glb,json}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/api/health'),
             handler: 'NetworkOnly',
+          },
+          {
+            // A body model is saved the first time it is shown, then works with no connection.
+            urlPattern: ({ url }) => url.pathname.startsWith('/models/') && url.pathname.endsWith('.glb'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'evexia-models',
+              expiration: { maxEntries: 8 },
+              cacheableResponse: { statuses: [200] },
+            },
           },
         ],
       },

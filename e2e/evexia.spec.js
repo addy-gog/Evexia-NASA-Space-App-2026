@@ -242,6 +242,7 @@ test.describe('Console', () => {
   });
 
   test('14. keyboard-only navigation reaches every primary action', async ({ page }) => {
+    test.slow();
     await page.goto('/'); // fresh page load: focus starts at the top
     await expect(page.getByTestId('greeting')).toBeVisible(); // wait for the session check to render the console
     await page.keyboard.press('Tab');

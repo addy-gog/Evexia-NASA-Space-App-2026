@@ -5,7 +5,43 @@ import { evaluateLog, missionDayOf } from '../lib/evaluate.js';
 import { formatDate, formatTime, formatIndicatorValue, SOURCE_LABEL } from '../lib/format.js';
 import { StatusIcon } from './Status.jsx';
 
-/** Table of log entries, newest first. Every row: date, time, mission day, source, values with status, details. */
+/** One cell for a single indicator: formatted value, highlighted if caution or critical. */
+function ReadingCell({ indicator, log, result }) {
+  const formatted = formatIndicatorValue(indicator.id, log);
+  if (formatted === '—') {
+    return <span className="text-ink-4 select-none">—</span>;
+  }
+  const severity = result?.severity;
+  const isAlert = severity === 'amber' || severity === 'red';
+  const isRed = severity === 'red';
+
+  return (
+    <div>
+      {isAlert ? (
+        <span
+          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 num font-medium text-xs ${
+            isRed
+              ? 'bg-crit-bg text-crit-fg border border-crit-line'
+              : 'bg-warn-bg text-warn-fg border border-warn-line'
+          }`}
+          title={`${indicator.short}: ${formatted} ${indicator.unit} (${severity})`}
+        >
+          <StatusIcon severity={severity} size={11} />
+          <span>{formatted}</span>
+        </span>
+      ) : (
+        <span className="num font-medium text-ink">{formatted}</span>
+      )}
+      {indicator.id === 'radiation' && log.spe && (
+        <span className="block text-[10px] font-semibold text-crit-fg leading-tight mt-0.5">
+          SPE alert
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Table of log entries, newest first. Option A: one column per reading for easy day-to-day comparison. */
 export default function LogTable({ logs, compact = false, onDelete, allLogs, ctx: ctxProp }) {
   const storeLogs = useHealthStore((s) => s.crewLogs);
   const storeCtx = useHealthStore((s) => s.ctx);
@@ -20,51 +56,88 @@ export default function LogTable({ logs, compact = false, onDelete, allLogs, ctx
       </p>
     );
   }
+
   return (
-    <div className="mt-2 overflow-x-auto">
-      <table className="w-full min-w-[720px] text-left text-sm" data-testid="log-table">
-        <caption className="sr-only">Log entries, newest first</caption>
+    <div className="mt-2 overflow-x-auto focus:outline-none focus-visible:ring-1 focus-visible:ring-accent rounded" tabIndex={0} role="region" aria-label="Log entries table">
+      <table className="w-full min-w-[960px] text-left text-sm" data-testid="log-table">
+        <caption className="sr-only">Log entries, newest first. One column per vital reading.</caption>
         <thead>
           <tr className="border-b border-line text-xs uppercase tracking-wide text-ink-3">
-            <th scope="col" className="py-2 pr-3">Date</th>
-            <th scope="col" className="pr-3">Time</th>
-            {!compact && <th scope="col" className="pr-3">Mission day</th>}
-            <th scope="col" className="pr-3">Source</th>
-            <th scope="col" className="pr-3">Readings</th>
-            <th scope="col" className="pr-3">Details</th>
-            {onDelete && <th scope="col"><span className="sr-only">Actions</span></th>}
+            <th scope="col" className="py-2.5 pr-4 font-semibold whitespace-nowrap">When</th>
+            {!compact && <th scope="col" className="py-2.5 pr-4 font-semibold whitespace-nowrap">Day</th>}
+            {INDICATORS.map((m) => (
+              <th key={m.id} scope="col" className="py-2.5 pr-4 font-semibold whitespace-nowrap">
+                {m.short} <span className="text-[10px] font-normal lowercase tracking-normal text-ink-4">{m.unit}</span>
+              </th>
+            ))}
+            <th scope="col" className="py-2.5 pr-4 font-semibold whitespace-nowrap">Source</th>
+            <th scope="col" className="py-2.5 pr-4 font-semibold">Details</th>
+            {onDelete && (
+              <th scope="col" className="py-2.5 pl-2 text-right">
+                <span className="sr-only">Actions</span>
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
           {rows.map(({ log, results }) => (
-            <tr key={log.id} className="border-b border-line/60 align-top" data-testid="log-row" data-log-id={log.id} data-source={log.source}>
-              <td className="num whitespace-nowrap py-2 pr-3">{formatDate(log.ts)}</td>
-              <td className="num whitespace-nowrap pr-3" data-testid="log-time">{formatTime(log.ts)}</td>
-              {!compact && <td className="num pr-3">{missionDayOf(log.ts, ctx.missionStart) ?? '—'}</td>}
-              <td className="pr-3">
-                <span className={`rounded border px-1.5 py-0.5 text-xs ${log.source === 'wearable' ? 'border-accent text-accent-text' : log.source === 'sample' ? 'border-line text-ink-3' : 'border-ink-dim'}`}>
-                  {SOURCE_LABEL[log.source] ?? log.source}
-                </span>
-                {log.device && log.source !== 'manual' && <span className="block text-xs text-ink-3">{log.device}</span>}
-                {log.pending && <span className="block text-xs text-warn-fg">Not yet sent to ground</span>}
+            <tr
+              key={log.id}
+              className="border-b border-line/60 align-top hover:bg-surface-2/40 transition-colors"
+              data-testid="log-row"
+              data-log-id={log.id}
+              data-source={log.source}
+            >
+              <td className="py-3 pr-4 whitespace-nowrap">
+                <div className="num font-medium text-ink leading-tight">{formatDate(log.ts)}</div>
+                <div className="num text-xs text-ink-3 leading-tight mt-0.5" data-testid="log-time">{formatTime(log.ts)}</div>
               </td>
-              <td className="pr-3">
-                <ul className="flex flex-wrap gap-x-3 gap-y-1">
-                  {INDICATORS.filter((m) => results[m.id]).map((m) => (
-                    <li key={m.id} className="flex items-center gap-1 whitespace-nowrap">
-                      <StatusIcon severity={results[m.id].severity} size={14} title={`${m.short} ${results[m.id].severity}`} />
-                      <span className="text-ink-3">{m.short}</span>
-                      <span className="num">{formatIndicatorValue(m.id, log)}</span>
-                      <span className="text-xs text-ink-3">{m.unit}</span>
-                    </li>
-                  ))}
-                  {log.spe && <li className="font-semibold text-crit-fg">SPE alert</li>}
-                </ul>
+              {!compact && (
+                <td className="num py-3 pr-4 text-ink-2 whitespace-nowrap">
+                  {missionDayOf(log.ts, ctx.missionStart) ?? '—'}
+                </td>
+              )}
+              {INDICATORS.map((m) => (
+                <td key={m.id} className="py-3 pr-4 whitespace-nowrap">
+                  <ReadingCell indicator={m} log={log} result={results[m.id]} />
+                </td>
+              ))}
+              <td className="py-3 pr-4">
+                <div className="flex flex-col items-start gap-1">
+                  <span
+                    className={`inline-block rounded border px-1.5 py-0.5 text-[11px] leading-tight font-medium ${
+                      log.source === 'wearable'
+                        ? 'border-accent/40 bg-accent/10 text-accent-text'
+                        : log.source === 'sample'
+                        ? 'border-line bg-surface-2 text-ink-3'
+                        : 'border-line bg-surface-2 text-ink-2'
+                    }`}
+                  >
+                    {SOURCE_LABEL[log.source] ?? log.source}
+                  </span>
+                  {log.device && (
+                    <span className="text-[11px] leading-tight text-ink-3">
+                      {log.device}
+                    </span>
+                  )}
+                  {log.pending && (
+                    <span className="text-[10px] leading-tight text-warn-fg">
+                      Not yet sent to ground
+                    </span>
+                  )}
+                </div>
               </td>
-              <td className="max-w-[320px] pr-3 text-ink-3" data-testid="log-notes">{log.notes || '—'}</td>
+              <td className="max-w-[280px] lg:max-w-[340px] py-3 pr-4 text-xs text-ink-3 leading-relaxed" data-testid="log-notes">
+                {log.notes || '—'}
+              </td>
               {onDelete && (
-                <td>
-                  <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => onDelete(log)} aria-label={`Delete log entry from ${formatDate(log.ts)} ${formatTime(log.ts)}`}>
+                <td className="py-3 pl-2 text-right whitespace-nowrap">
+                  <button
+                    type="button"
+                    className="btn-ghost px-2.5 py-1 text-xs text-ink-3 hover:text-crit-fg hover:border-crit transition-colors"
+                    onClick={() => onDelete(log)}
+                    aria-label={`Delete log entry from ${formatDate(log.ts)} ${formatTime(log.ts)}`}
+                  >
                     Delete
                   </button>
                 </td>

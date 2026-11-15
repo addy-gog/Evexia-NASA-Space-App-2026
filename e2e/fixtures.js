@@ -6,13 +6,15 @@ import { test as base, expect } from '@playwright/test';
  */
 export const test = base.extend({
   page: async ({ page }, use) => {
+    await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.fulfill({ status: 200, contentType: 'text/css', body: '' }));
     const errors = [];
     page.on('console', (msg) => {
       // ERR_NETWORK_CHANGED is the host OS switching network adapters, not an app error.
       // A rejected sign-in (401) on the login page is expected behaviour, not an app error.
       // So is the 401 from the session check on a signed-out page, just before the client redirects to /login.
       const expected401 = /status of 401/.test(msg.text()) && (page.url().includes('/login') || /\/api\/auth\//.test(msg.location()?.url ?? ''));
-      if (msg.type() === 'error' && !/ERR_NETWORK_CHANGED/.test(msg.text()) && !expected401) errors.push(`${msg.text()} @ ${msg.location()?.url ?? '?'} (page ${page.url()})`);
+      const isFontNetError = /ERR_TIMED_OUT|ERR_NAME_NOT_RESOLVED|ERR_CONNECTION_REFUSED/.test(msg.text()) && /fonts\.(googleapis|gstatic)/.test(msg.text());
+      if (msg.type() === 'error' && !/ERR_NETWORK_CHANGED/.test(msg.text()) && !expected401 && !isFontNetError) errors.push(`${msg.text()} @ ${msg.location()?.url ?? '?'} (page ${page.url()})`);
     });
     page.on('pageerror', (err) => errors.push(err.message));
     await use(page);

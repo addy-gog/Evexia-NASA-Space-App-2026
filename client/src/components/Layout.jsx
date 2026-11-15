@@ -152,7 +152,6 @@ function Header() {
   const link = useHealthStore((s) => s.earthLink);
   const blackout = link?.mode === 'blackout';
   const waiting = link?.waiting ?? 0;
-  const earthText = `${delay > 0 ? `about ${formatDelay(delay)} one-way` : 'real-time'}${blackout ? ', link down' : ''}${waiting ? `, ${waiting} report${waiting === 1 ? '' : 's'} waiting` : ''}`;
   return (
     <header className="z-30 border-b border-ink/[0.06] bg-[rgb(var(--chrome)/0.90)] lg:sticky lg:top-0">
       <div className="mx-auto flex max-w-page flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 sm:px-6">
@@ -186,7 +185,7 @@ function Header() {
             <span className={`block h-2 w-2 rounded-full ${apiOnline === false ? 'bg-warn-dot' : 'bg-ok-dot'}`} aria-hidden="true" />
             {apiOnline === false ? <span className="text-warn-fg">Onboard server unreachable</span> : 'Onboard OK'}
           </span>
-          <Link to="/comms" className="pill hover:bg-ink/[0.06]" data-testid="earth-link" data-mode={link?.mode ?? 'unknown'} aria-label={`Earth link: ${earthText}. Open Earth link.`}>
+          <Link to="/comms" className="pill hover:bg-ink/[0.06]" data-testid="earth-link" data-mode={link?.mode ?? 'unknown'}>
             <span className="font-mono text-ink-3" data-testid="header-day">Day {day ?? '—'}</span>
             <span className="h-3.5 w-px bg-ink/15" aria-hidden="true" />
             <span className={`block h-2 w-2 rounded-full ${blackout ? 'bg-warn-dot' : 'blink bg-ok-dot'}`} aria-hidden="true" />
