@@ -77,6 +77,19 @@ test.describe('Progressive Web App (PWA) and offline capabilities', () => {
     await headerInstall.click();
   });
 
+  test('displays floating install prompt banner at top corner after initial visit', async ({ page }) => {
+    await page.goto('/login');
+
+    // Banner appears in top corner after delay
+    const banner = page.getByTestId('pwa-install-banner');
+    await expect(banner).toBeVisible({ timeout: 6000 });
+    await expect(banner.getByText('Install Evexia App')).toBeVisible();
+
+    // Clicking "Not now" or dismiss button dismisses it
+    await page.getByTestId('pwa-dismiss-banner').click();
+    await expect(banner).not.toBeVisible();
+  });
+
   test('generates service worker script for offline caching', async ({ request }) => {
     const swRes = await request.get('/sw.js');
     expect(swRes.ok()).toBeTruthy();

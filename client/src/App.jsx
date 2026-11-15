@@ -13,6 +13,7 @@ import Emergency from './routes/Emergency.jsx';
 import Telemetry from './routes/Telemetry.jsx';
 import { LogoMark } from './components/Brand.jsx';
 import SpaceBackground from './components/SpaceBackground.jsx';
+import PWAInstallBanner from './components/PWAInstallBanner.jsx';
 import { useHealthStore } from './store/useHealthStore.js';
 import { useTelemetryStream, useAutoSync } from './hooks/useTelemetry.js';
 import { api } from './lib/api.js';
@@ -145,6 +146,7 @@ export default function App() {
   return (
     <>
     <SpaceBackground />
+    <PWAInstallBanner />
     <Routes>
       <Route path="login" element={checked ? <Login /> : <Splash />} />
       <Route

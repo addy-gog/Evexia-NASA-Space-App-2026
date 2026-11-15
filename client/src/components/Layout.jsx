@@ -6,7 +6,6 @@ import { DISCLAIMER } from '../config/thresholds.js';
 import { formatDelay } from '../lib/comms.js';
 import AIDock from './ai/AIDock.jsx';
 import Toast from './Toast.jsx';
-import InstallDialog from './InstallDialog.jsx';
 import { Wordmark, Avatar } from './Brand.jsx';
 
 const NAV = [
@@ -290,7 +289,7 @@ export function Disclaimer({ className = '' }) {
 
 export default function Layout() {
   const { pathname } = useLocation();
-  const { canInstallPrompt, isStandalone, showInstructions, installApp, closeInstructions } = usePWAInstall();
+  const { canInstallPrompt, isStandalone, installApp } = usePWAInstall();
 
   useEffect(() => {
     document.title = `${TITLES[pathname] ?? 'Evexia'} · Evexia Crew Health Console`;
@@ -313,7 +312,6 @@ export default function Layout() {
       <TabBar />
       <AIDock />
       <Toast />
-      <InstallDialog open={showInstructions} onClose={closeInstructions} />
     </div>
   );
 }

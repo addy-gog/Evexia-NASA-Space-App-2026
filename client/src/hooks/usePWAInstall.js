@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// Keep the captured prompt in module scope so early events before component mount are not lost
+// Module-level state to guarantee early events before component mount are captured,
+// and state remains synchronized across all header/banner/menu components.
 let deferredPrompt = null;
+let instructionsOpen = false;
 const promptListeners = new Set();
+const instructionListeners = new Set();
 
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent the mini-infobar on mobile so we can trigger our own polished prompt
+    // Prevent default mini-infobar so we control the prompt
     e.preventDefault();
     deferredPrompt = e;
     promptListeners.forEach((listener) => listener(deferredPrompt));
@@ -14,12 +17,15 @@ if (typeof window !== 'undefined') {
 
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
+    instructionsOpen = false;
     promptListeners.forEach((listener) => listener(null));
+    instructionListeners.forEach((listener) => listener(false));
   });
 }
 
 export function usePWAInstall() {
   const [prompt, setPrompt] = useState(deferredPrompt);
+  const [showInstructions, setShowInstructions] = useState(instructionsOpen);
   const [isStandalone, setIsStandalone] = useState(() => {
     if (typeof window === 'undefined') return false;
     return Boolean(
@@ -27,13 +33,17 @@ export function usePWAInstall() {
       window.navigator?.standalone === true
     );
   });
-  const [showInstructions, setShowInstructions] = useState(false);
 
   useEffect(() => {
     const handlePromptChange = (newPrompt) => {
       setPrompt(newPrompt);
     };
+    const handleInstructionChange = (isOpen) => {
+      setShowInstructions(isOpen);
+    };
+
     promptListeners.add(handlePromptChange);
+    instructionListeners.add(handleInstructionChange);
 
     const mql = window.matchMedia?.('(display-mode: standalone)');
     const handleMql = (e) => setIsStandalone(e.matches);
@@ -41,6 +51,7 @@ export function usePWAInstall() {
 
     return () => {
       promptListeners.delete(handlePromptChange);
+      instructionListeners.delete(handleInstructionChange);
       mql?.removeEventListener?.('change', handleMql);
     };
   }, []);
@@ -60,14 +71,15 @@ export function usePWAInstall() {
         console.error('Install prompt failed:', err);
       }
     }
-    // If native prompt is not available (e.g. iOS Safari, Firefox, or already rejected),
-    // show instructions modal
-    setShowInstructions(true);
+    // If native prompt is not available, open the guide dialog
+    instructionsOpen = true;
+    instructionListeners.forEach((fn) => fn(true));
     return { installed: false, needsGuide: true };
   }, []);
 
   const closeInstructions = useCallback(() => {
-    setShowInstructions(false);
+    instructionsOpen = false;
+    instructionListeners.forEach((fn) => fn(false));
   }, []);
 
   return {
