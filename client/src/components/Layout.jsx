@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useHealthStore } from '../store/useHealthStore.js';
+import { usePWAInstall } from '../hooks/usePWAInstall.js';
 import { DISCLAIMER } from '../config/thresholds.js';
 import { formatDelay } from '../lib/comms.js';
 import AIDock from './ai/AIDock.jsx';
 import Toast from './Toast.jsx';
+import InstallDialog from './InstallDialog.jsx';
 import { Wordmark, Avatar } from './Brand.jsx';
 
 const NAV = [
@@ -78,7 +80,7 @@ export function ThemeToggle({ className = '' }) {
   );
 }
 
-function ProfileMenu() {
+function ProfileMenu({ onInstall, isStandalone }) {
   const user = useHealthStore((s) => s.user);
   const profile = useHealthStore((s) => s.profile);
   const logout = useHealthStore((s) => s.logout);
@@ -126,6 +128,20 @@ function ProfileMenu() {
             <Link className={item} to="/telemetry" onClick={() => setOpen(false)}>Live Telemetry</Link>
             <Link className={item} to="/guide" onClick={() => setOpen(false)}>Measurement guide</Link>
             <Link className={item} to="/credits" onClick={() => setOpen(false)}>Credits &amp; sources</Link>
+            {!isStandalone && (
+              <button
+                type="button"
+                className={`${item} text-left text-accent-text`}
+                onClick={() => {
+                  setOpen(false);
+                  onInstall?.();
+                }}
+                data-testid="menu-install-app"
+              >
+                <NavIcon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                <span className="ml-2">Install Evexia app</span>
+              </button>
+            )}
             <button
               type="button"
               className={`${item} text-left text-crit-fg`}
@@ -144,7 +160,7 @@ function ProfileMenu() {
   );
 }
 
-function Header() {
+function Header({ onInstall, canInstallPrompt, isStandalone }) {
   const day = useHealthStore((s) => s.status.missionDay);
   const delay = useHealthStore((s) => s.delaySeconds);
   const apiOnline = useHealthStore((s) => s.apiOnline);
@@ -196,6 +212,18 @@ function Header() {
           <span className="sr-only" role="status" data-testid="connection-status" data-online={apiOnline !== false}>
             {apiOnline === false ? 'Onboard server unreachable: working from this device' : 'Onboard server reachable'}
           </span>
+          {canInstallPrompt && (
+            <button
+              type="button"
+              onClick={onInstall}
+              className="pill border border-accent/40 bg-accent/10 font-semibold text-accent-text hover:bg-accent/20"
+              data-testid="header-install-app"
+              title="Install Evexia as a standalone app"
+            >
+              <NavIcon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+              <span>Install app</span>
+            </button>
+          )}
           <NavLink to="/emergency" className="btn-danger min-h-touch rounded-full px-4 text-sm" data-testid="emergency-button">
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 7v6M12 17h.01M8 2h8l6 6v8l-6 6H8l-6-6V8z" /></svg>
             Emergency
@@ -203,7 +231,7 @@ function Header() {
           <div className="hidden xl:block">
             <TextSizeToggle />
           </div>
-          <ProfileMenu />
+          <ProfileMenu onInstall={onInstall} isStandalone={isStandalone} />
         </div>
       </div>
     </header>
@@ -262,6 +290,8 @@ export function Disclaimer({ className = '' }) {
 
 export default function Layout() {
   const { pathname } = useLocation();
+  const { canInstallPrompt, isStandalone, showInstructions, installApp, closeInstructions } = usePWAInstall();
+
   useEffect(() => {
     document.title = `${TITLES[pathname] ?? 'Evexia'} · Evexia Crew Health Console`;
   }, [pathname]);
@@ -271,7 +301,11 @@ export default function Layout() {
       <a href="#main" className="sr-only-focusable fixed left-2 top-2 z-[60] rounded-input bg-accent px-4 py-2 font-bold text-white">
         Skip to main content
       </a>
-      <Header />
+      <Header
+        onInstall={installApp}
+        canInstallPrompt={canInstallPrompt}
+        isStandalone={isStandalone}
+      />
       <main id="main" tabIndex={-1} className="w-full flex-1 px-4 pb-[180px] pt-6 sm:px-6 lg:pb-[140px]">
         <Outlet />
       </main>
@@ -279,6 +313,7 @@ export default function Layout() {
       <TabBar />
       <AIDock />
       <Toast />
+      <InstallDialog open={showInstructions} onClose={closeInstructions} />
     </div>
   );
 }

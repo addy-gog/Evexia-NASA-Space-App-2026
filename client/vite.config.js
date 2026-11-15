@@ -11,7 +11,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       // The 3D bodies (4-8 MB each) are NOT pre-downloaded: that cost every first visit about 28 MB
       // and bypassed the slow-connection question. They are kept the first time they are viewed.
-      includeAssets: ['favicon.svg', 'avatars/*.svg'],
+      includeAssets: ['favicon.svg', 'icons/*.png', 'avatars/*.svg'],
       manifest: {
         name: 'Evexia · Astronaut Health Monitoring Console',
         short_name: 'Evexia',
@@ -24,10 +24,27 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
+            src: '/icons/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/icons/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/icons/icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          {
             src: '/favicon.svg',
-            sizes: '64x64 192x192 512x512',
+            sizes: 'any',
             type: 'image/svg+xml',
-            purpose: 'any maskable',
           },
         ],
       },

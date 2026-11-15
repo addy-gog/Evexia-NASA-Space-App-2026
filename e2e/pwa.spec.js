@@ -1,6 +1,14 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
 
+async function login(page) {
+  await page.goto('/login');
+  await page.getByTestId('login-username').fill('okafor');
+  await page.getByTestId('login-password').fill('Okafor-2026');
+  await page.getByTestId('login-submit').click();
+  await expect(page).toHaveURL(/\/$/);
+}
+
 test.describe('Progressive Web App (PWA) and offline capabilities', () => {
   test('serves web app manifest with valid name, icons and standalone display mode', async ({ page, request }) => {
     await page.goto('/login');
@@ -21,6 +29,52 @@ test.describe('Progressive Web App (PWA) and offline capabilities', () => {
     expect(manifest.display).toBe('standalone');
     expect(manifest.icons).toBeInstanceOf(Array);
     expect(manifest.icons.length).toBeGreaterThan(0);
+
+    // Verify Chrome PWA criteria: PNG icons with 192x192 and 512x512 sizes
+    const icon192 = manifest.icons.find((i) => i.sizes === '192x192' && i.type === 'image/png');
+    const icon512 = manifest.icons.find((i) => i.sizes === '512x512' && i.type === 'image/png');
+    expect(icon192).toBeTruthy();
+    expect(icon512).toBeTruthy();
+
+    // Verify icons can be fetched
+    const res192 = await request.get(icon192.src);
+    expect(res192.ok()).toBeTruthy();
+    expect(res192.headers()['content-type']).toContain('image/png');
+
+    const res512 = await request.get(icon512.src);
+    expect(res512.ok()).toBeTruthy();
+    expect(res512.headers()['content-type']).toContain('image/png');
+  });
+
+  test('surfaces in-app install flow via profile menu and install prompt event', async ({ page }) => {
+    await login(page);
+
+    // Check account menu has Install option
+    await page.getByTestId('profile-button').click();
+    const menuInstall = page.getByTestId('menu-install-app');
+    await expect(menuInstall).toBeVisible();
+
+    // Clicking menu option without native prompt opens installation guide dialog
+    await menuInstall.click();
+    await expect(page.getByRole('dialog', { name: 'Install Evexia' })).toBeVisible();
+    await expect(page.getByText('Desktop (Chrome, Edge, Brave)')).toBeVisible();
+    await page.getByRole('button', { name: 'Got it' }).click();
+    await expect(page.getByRole('dialog', { name: 'Install Evexia' })).not.toBeVisible();
+
+    // Simulate beforeinstallprompt event from browser
+    await page.evaluate(() => {
+      const event = new Event('beforeinstallprompt');
+      // @ts-ignore
+      event.prompt = () => Promise.resolve();
+      // @ts-ignore
+      event.userChoice = Promise.resolve({ outcome: 'accepted' });
+      window.dispatchEvent(event);
+    });
+
+    // Header install pill should now appear
+    const headerInstall = page.getByTestId('header-install-app');
+    await expect(headerInstall).toBeVisible();
+    await headerInstall.click();
   });
 
   test('generates service worker script for offline caching', async ({ request }) => {
