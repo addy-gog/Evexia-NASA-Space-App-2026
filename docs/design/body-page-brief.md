@@ -48,8 +48,24 @@ outside view 4.4–6.2 MB, inside view a further 7.6–8.1 MB. Mitigations: the 
 
 ## Phase 1.5: inspiration
 
-To be filled after the browse: galleries visited, one principle each, and `/taste` measurements.
+Browsed 15 Nov 2026 (15-minute box). One principle each, not pixels:
+
+- **Zygote Body** (zygotebody.com): the layer switcher is a vertical stack of small pictograms ordered from the outside in, beside the body. The order itself teaches "going deeper".
+- **BioDigital Human** (human.biodigital.com, sign-in page only; the viewer needs an account): depth shown as a left-to-right peel across four faces, and the faces span several skin tones. Depth reads as a sequence; the default body is not one pale person.
+- **Open Anatomy 3D demo** (mervinr07.github.io/open-anatomy-3d): callout cards are pinned to structures and follow the body as it turns, so the label never loses its organ.
+- **Human Atlas** (Hacker News thread, 7 Sep 2026): the comment people liked most was the exploded "flat lay sorted by size". Exploded views earn their place when the spread is ordered, not random.
+- **mesh3d.gallery** front page: brand showpieces, nothing medical; no principle taken.
+
+`/taste` was not run: it measures page type and spacing from the DOM, and this page's type and spacing are fixed by Evexia's existing tokens. The open question here is motion inside a 3D canvas, which `/taste` cannot see. Said out loud rather than skipped quietly.
 
 ## Phase 2: direction
 
-To be filled after the variant board is picked.
+**Transition: the scan sweep (Mutalib, 15 Nov 2026).** Chosen from three rendered options (scan sweep, fade in place, camera dive), see `transition-options.gif`.
+
+- A thin ring in the Evexia accent blue travels head to toe. Above the ring: the anatomy. Below it: the realistic body. This is the page's signature move and its one orchestrated motion.
+- **Arm fix (measured, not guessed).** James's arms are |x| > 0.21 m between 0.95 m and 1.47 m high (shoulders at 1.45 m, fingertips 0.58 m out). Cutting them with a flat ring left two forearms floating at the sides. Now the outside arms fade as one piece while the ring travels from 1.47 m to 1.20 m, and the ring's width follows the body's measured width at each height. See `transition-scan.gif`.
+- Done with a shader patch (discard above or below the band), not clipping planes, so the arms can fade while the torso keeps a crisp cut.
+- Easing: sine in-out over the whole sweep. Reduced motion: instant swap, no ring.
+- The female model needs the same arm measurement before it ships. [NEEDS: measure the female model's arm zone]
+
+Tone: clinical, calm, exact. Type, colour and spacing: existing Evexia tokens. What we refuse: glow-everything sci-fi, more than one animated moment per view, dark-mode-only "HUD" styling.
