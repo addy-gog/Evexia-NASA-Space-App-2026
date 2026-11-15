@@ -320,7 +320,19 @@ test.describe('Console', () => {
     const alert = page.getByTestId('assistant-emergency');
     await expect(alert).toContainText('Possible danger sign: chest pain or pressure');
     await expect(page.getByTestId('assistant-messages')).toContainText('open emergency mode and alert the crew medical officer');
-    await page.getByTestId('photo-button').click();
+    // The + menu: opens with focus on its first item, Escape closes it and returns focus to +.
+    const plus = page.getByTestId('attach-button');
+    await plus.click();
+    await expect(plus).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByRole('menuitem', { name: 'Upload a photo' })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByRole('menuitem', { name: 'Take a photo' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('attach-menu')).toBeHidden();
+    await expect(plus).toBeFocused();
+    // Offline, choosing a photo explains that photos need Claude.
+    await plus.click();
+    await page.getByRole('menuitem', { name: 'Upload a photo' }).click();
     await expect(page.getByTestId('assistant-notice')).toContainText('Photos need Claude');
     await alert.getByRole('link', { name: 'Open emergency mode' }).click();
     await expect(page).toHaveURL(/\/emergency$/);

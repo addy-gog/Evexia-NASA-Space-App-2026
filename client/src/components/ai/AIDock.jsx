@@ -19,6 +19,7 @@ import { SEVERITY_META } from '../Status.jsx';
 import CompanionStill from './CompanionStill.jsx';
 import ActionCard from './ActionCard.jsx';
 import EscalationDialog from '../EscalationDialog.jsx';
+import CameraDialog from './CameraDialog.jsx';
 
 const Companion = lazy(() => import('./Companion.jsx'));
 const CHIPS = ['What should I do first?', 'Why does the delay matter?', 'Draft a report'];
@@ -32,6 +33,8 @@ function Icon({ d, size = 20 }) {
   );
 }
 const ICONS = {
+  plus: ['M12 5v14', 'M5 12h14'],
+  image: ['M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z', 'M9 11a2 2 0 1 0 0-4a2 2 0 1 0 0 4z', 'M21 15l-5-5L5 20'],
   camera: ['M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', 'M12 16.5a3.5 3.5 0 1 0 0-7a3.5 3.5 0 1 0 0 7z'],
   mic: ['M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z', 'M19 11a7 7 0 0 1-14 0', 'M12 18v3'],
   stop: ['M7 7h10v10H7z'],
@@ -72,6 +75,11 @@ export default function AIDock() {
   const listRef = useRef(null);
   const inputRef = useRef(null);
   const fileRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const plusRef = useRef(null);
+  const menuRef = useRef(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const dictation = useDictation(setInput);
   const speaker = useSpeaker();
   const { worst, flagged } = useWorst(status);
@@ -148,16 +156,45 @@ export default function AIDock() {
     setBusy(false);
   };
 
-  const pickPhoto = () => {
+  // The + menu: upload a photo, or take one. Photos need Claude, so offline mode explains instead.
+  const closeMenu = (refocus = true) => {
+    setMenuOpen(false);
+    if (refocus) plusRef.current?.focus();
+  };
+  const choose = (kind) => {
+    closeMenu(false);
     if (offline) {
       setNotice('Photos need Claude. Tap "Go online" to send one, or type the numbers instead.');
+      plusRef.current?.focus();
       return;
     }
-    fileRef.current?.click();
+    if (kind === 'upload') fileRef.current?.click();
+    // Phones open their own camera app; laptops get a live camera view.
+    else if (window.matchMedia?.('(pointer: coarse)').matches) cameraInputRef.current?.click();
+    else setCameraOpen(true);
   };
-  const onFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    menuRef.current?.querySelector('[role=menuitem]')?.focus();
+    const outside = (e) => {
+      if (!menuRef.current?.contains(e.target) && !plusRef.current?.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', outside);
+    return () => document.removeEventListener('pointerdown', outside);
+  }, [menuOpen]);
+  const menuKeys = (e) => {
+    const items = [...(menuRef.current?.querySelectorAll('[role=menuitem]') ?? [])];
+    const i = items.indexOf(document.activeElement);
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMenu();
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus();
+    } else if (e.key === 'Tab') setMenuOpen(false);
+  };
+  const attachPhoto = async (file) => {
     if (!file) return;
     try {
       setPhoto(await preparePhoto(file));
@@ -167,13 +204,19 @@ export default function AIDock() {
       setNotice(err.message);
     }
   };
+  const onFile = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    attachPhoto(file);
+  };
 
   // Starts with the visible text ("Ask Evexia AI" + status line) so voice-control users can say what they see; aria-expanded gives open/closed.
   const statusLine = open ? 'Tap to minimise' : flagged ? `${flagged} item${flagged > 1 ? 's' : ''} to review` : 'All nominal · ask anything';
   const aria = `Ask Evexia AI, ${statusLine}`;
   const modeText = offline ? 'Offline · rule-based fallback' : fallback ? 'Online · rule-based (no Claude key)' : 'Online · powered by Claude';
   const size = expanded ? 'sm:h-[min(820px,calc(100vh-156px))] sm:w-[min(680px,calc(100vw-48px))]' : 'sm:h-[min(600px,72vh)] sm:w-[380px]';
-  const iconBtn = 'btn-ghost h-12 w-12 flex-none p-0';
+  const roundBtn = 'flex h-11 w-11 flex-none items-center justify-center rounded-full text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-50';
+  const menuItem = 'flex min-h-touch w-full items-center gap-3 rounded-input px-3 text-left text-sm font-semibold text-ink hover:bg-surface-2 focus-visible:bg-surface-2';
 
   return (
     <>
@@ -263,60 +306,112 @@ export default function AIDock() {
                 {q}
               </button>
             ))}
-            <button type="button" disabled={busy} onClick={pickPhoto} className="min-h-touch flex-none rounded-full border border-[#C9D1DC] bg-surface px-3.5 text-[13px] font-semibold text-accent hover:bg-accent-soft">
+            <button type="button" disabled={busy} onClick={() => setMenuOpen(true)} className="min-h-touch flex-none rounded-full border border-[#C9D1DC] bg-surface px-3.5 text-[13px] font-semibold text-accent hover:bg-accent-soft">
               Read a device screen
             </button>
           </div>
-          {photo && (
-            <div className="flex items-center gap-3 border-t border-line bg-surface px-4 pt-2" data-testid="photo-preview">
-              <img src={photo.previewUrl} alt="Photo ready to send" className="h-14 w-14 flex-none rounded-tile border border-line object-cover" />
-              <p className="min-w-0 flex-1 text-xs text-ink-3">Sent to Claude with your message. Not stored on the server.</p>
-              <button type="button" className="btn-ghost min-h-touch px-3 text-xs" onClick={() => setPhoto(null)}>Remove photo</button>
-            </div>
-          )}
           {(notice || dictation.error) && (
-            <p className="bg-surface px-4 pt-2 text-xs font-semibold text-warn-fg" role="status" data-testid="assistant-notice">{notice || dictation.error}</p>
+            <p className="bg-surface px-4 pb-1 text-xs font-semibold text-warn-fg" role="status" data-testid="assistant-notice">{notice || dictation.error}</p>
           )}
+          {/* One rounded message box: + (photo menu) on the left, mic and send on the right. */}
           <form
-            className="flex gap-2 border-t border-line bg-surface px-4 pb-6 pt-2 sm:rounded-b-card sm:pb-3"
+            className="bg-surface px-4 pb-6 pt-1 sm:rounded-b-card sm:pb-2"
             onSubmit={(e) => {
               e.preventDefault();
               ask(input);
             }}
           >
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} data-testid="photo-input" tabIndex={-1} aria-hidden="true" />
-            <button type="button" className={`${iconBtn} ${offline ? 'opacity-60' : ''}`} onClick={pickPhoto} disabled={busy} aria-label={offline ? 'Add a photo (needs Claude, go online first)' : 'Add a photo'} data-testid="photo-button">
-              <Icon d={ICONS.camera} />
-            </button>
-            {dictation.supported && (
-              <button
-                type="button"
-                className={`${iconBtn} ${dictation.listening ? 'bg-crit-bg text-crit-fg' : ''}`}
-                onClick={() => (dictation.listening ? dictation.stop() : dictation.start(input))}
-                disabled={busy}
-                aria-pressed={dictation.listening}
-                aria-label={dictation.listening ? 'Stop dictation' : 'Dictate a message'}
-                data-testid="mic-button"
-              >
-                <Icon d={dictation.listening ? ICONS.stop : ICONS.mic} />
-              </button>
-            )}
-            <label htmlFor="assistant-input" className="sr-only">Message Evexia AI</label>
-            <input
-              id="assistant-input"
-              ref={inputRef}
-              value={input}
-              maxLength={1000}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={dictation.listening ? 'Listening…' : photo ? 'Add a question (optional)' : 'Ask about a reading…'}
-              className="h-12 min-w-0 flex-1 rounded-tile border border-[#C9D1DC] bg-surface px-3.5 text-[15px]"
-            />
-            <button type="submit" disabled={busy || (!input.trim() && !photo)} aria-label="Send" className="btn-primary h-12 w-12 flex-none p-0">
-              <Icon d={ICONS.send} />
-            </button>
+            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFile} tabIndex={-1} aria-hidden="true" />
+            <div className="composer relative rounded-[24px] border border-[#C9D1DC] bg-surface p-1.5" data-testid="composer">
+              {photo && (
+                <div className="flex items-center gap-3 px-1.5 pb-1.5 pt-0.5" data-testid="photo-preview">
+                  <img src={photo.previewUrl} alt="Photo ready to send" className="h-14 w-14 flex-none rounded-tile border border-line object-cover" />
+                  <p className="min-w-0 flex-1 text-xs text-ink-3">Goes to Claude with your message. Not stored.</p>
+                  <button type="button" className="btn-ghost min-h-touch px-3 text-xs" onClick={() => setPhoto(null)}>Remove</button>
+                </div>
+              )}
+              <div className="flex items-center gap-1">
+                <button
+                  ref={plusRef}
+                  type="button"
+                  className={`${roundBtn} ${menuOpen ? 'bg-surface-2 text-ink' : ''}`}
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  disabled={busy}
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  aria-controls="attach-menu"
+                  aria-label="Add a photo"
+                  data-testid="attach-button"
+                >
+                  <Icon d={ICONS.plus} size={22} />
+                </button>
+                <label htmlFor="assistant-input" className="sr-only">Message Evexia AI</label>
+                <input
+                  id="assistant-input"
+                  ref={inputRef}
+                  value={input}
+                  maxLength={1000}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={dictation.listening ? 'Listening…' : photo ? 'Add a question (optional)' : 'Ask Evexia anything'}
+                  className="h-11 min-w-0 flex-1 bg-transparent px-1.5 text-[15px] outline-none"
+                />
+                {dictation.supported && (
+                  <button
+                    type="button"
+                    className={`${roundBtn} ${dictation.listening ? 'bg-crit-bg text-crit-fg hover:bg-crit-bg hover:text-crit-fg' : ''}`}
+                    onClick={() => (dictation.listening ? dictation.stop() : dictation.start(input))}
+                    disabled={busy}
+                    aria-pressed={dictation.listening}
+                    aria-label={dictation.listening ? 'Stop dictation' : 'Dictate a message'}
+                    data-testid="mic-button"
+                  >
+                    <Icon d={dictation.listening ? ICONS.stop : ICONS.mic} />
+                  </button>
+                )}
+                <button type="submit" disabled={busy || (!input.trim() && !photo)} aria-label="Send" className="btn-primary h-11 w-11 flex-none rounded-full p-0">
+                  <Icon d={ICONS.send} />
+                </button>
+              </div>
+              {menuOpen && (
+                <div
+                  ref={menuRef}
+                  id="attach-menu"
+                  role="menu"
+                  aria-label="Add a photo"
+                  onKeyDown={menuKeys}
+                  className="rise absolute bottom-[calc(100%+8px)] left-0 z-10 w-60 rounded-card border border-line bg-surface p-1.5 shadow-float"
+                  data-testid="attach-menu"
+                >
+                  <button type="button" role="menuitem" className={menuItem} onClick={() => choose('upload')}>
+                    <Icon d={ICONS.image} />
+                    Upload a photo
+                  </button>
+                  <button type="button" role="menuitem" className={menuItem} onClick={() => choose('camera')}>
+                    <Icon d={ICONS.camera} />
+                    Take a photo
+                  </button>
+                  {offline && <p className="px-3 pb-1.5 pt-1 text-xs text-ink-3">Photos need Claude. Go online first.</p>}
+                </div>
+              )}
+            </div>
           </form>
           <p className="bg-surface px-4 pb-3 text-[11px] text-ink-3 sm:rounded-b-card">Decision support only. Not a diagnosis.</p>
         </aside>
+      )}
+
+      {cameraOpen && (
+        <CameraDialog
+          onClose={() => setCameraOpen(false)}
+          onCapture={(file) => {
+            setCameraOpen(false);
+            attachPhoto(file);
+          }}
+          onChooseFile={() => {
+            setCameraOpen(false);
+            fileRef.current?.click();
+          }}
+        />
       )}
 
       {report && (
